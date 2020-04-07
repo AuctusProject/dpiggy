@@ -1,0 +1,30 @@
+.coin-details {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    width: 220px;
+}
+
+.coin-details .coin-icon {
+    width: 40px;
+}
+
+.coin-name-code {
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.coin-name {
+    font-size: 16px;
+    text-align: left;
+    color: #1b1b1b;
+}
+
+.coin-code {
+    font-size: 12px;
+    text-align: left;
+    color: #7f7f7f;
+}

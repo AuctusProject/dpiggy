@@ -1,0 +1,518 @@
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+body,
+#root,
+main {
+  background-color: #ffffff !important;
+  color: #404040 !important;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+main {
+  position: relative;
+}
+
+.app-content {
+  min-height: calc(100vh - 338px);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+.form-control,
+.form-control:focus {
+  background-color: transparent !important;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.width100 {
+  width: 100%;
+}
+
+.swal2-actions {
+  z-index: unset !important;
+}
+
+.dpiggy-btn {
+  display: inline-block;
+  font-weight: bold !important;
+  font-stretch: normal;
+  font-style: normal;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  padding: 8px 24px !important;
+  font-size: 16px !important;
+  line-height: 1.5;
+  border-radius: 22px !important;
+  letter-spacing: 0.7px;
+  -webkit-transition: all 200ms ease-in-out;
+  transition: all 200ms ease-in-out;
+  text-decoration: none !important;
+  max-width: 100%;
+  max-height: 100%;
+  position: relative;
+}
+
+.dpiggy-btn:not(:disabled):not(.disabled):hover {
+  -webkit-transform: translateY(-3px);
+  transform: translateY(-3px);
+}
+
+.dpiggy-btn:active {
+  -webkit-transform: translateY(-1px);
+  transform: translateY(-1px);
+}
+
+.dpiggy-btn:focus {
+  outline: none;
+}
+
+.dpiggy-btn::after {
+  content: "";
+  display: inline-block;
+  border-radius: 100px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  -webkit-transition: all 400ms;
+  transition: all 400ms;
+  background-color: inherit;
+  width: 100%;
+  height: 100%;
+  max-width: calc(100vw - 100px);
+  max-height: calc(100vh - 100px);
+  min-width: max-content;
+  min-height: max-content;
+}
+
+.dpiggy-btn:not(:disabled):not(.disabled):hover::after {
+  -webkit-transform: scaleX(1.4) scaleY(1.6);
+  transform: scaleX(1.4) scaleY(1.6);
+  opacity: 0;
+}
+
+.dpiggy-btn.disabled, .dpiggy-btn:disabled {
+  cursor: default;
+}
+
+.btn-sm {
+  font-size: 15px !important;
+  padding: 4px 24px !important;
+}
+
+.action-btn {
+  box-shadow: 0px 3px 5px 0 #31bcee59 !important;
+  background-color: #31bcee !important;
+  border: solid 2px #31bcee !important;
+  color: #301851 !important;
+}
+
+.action-btn:not(:disabled):not(.disabled):hover {
+  box-shadow: 0px 10px 20px #31bcee59 !important;
+  background-color: #31bceedd !important;
+}
+
+.action-btn:active {
+  box-shadow: 0px 5px 10px #31bcee59 !important;
+}
+
+.action-btn.disabled, .action-btn:disabled {
+  background-color: #31bcee88 !important;
+  border: solid 2px transparent !important;
+  box-shadow: none !important;
+}
+
+.outline-btn {
+  border: solid 2px #140055 !important;
+  color: #301851 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.outline-btn::after {
+  background-color: #140055;
+}
+
+.outline-btn:not(:disabled):not(.disabled):hover {
+  box-shadow: 0px 10px 20px #14005559 !important;
+}
+
+.outline-btn:active {
+  box-shadow: 0px 5px 10px #14005559 !important;
+}
+
+.modal-backdrop {
+  min-width: -webkit-fill-available;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+.blue-title {
+  font-size: 27.5px;
+  font-weight: bold;
+  font-stretch: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  color: #31bcee;
+  margin-bottom: 20px;
+}
+
+.black-title {
+  font-size: 18px;
+  font-weight: bold;
+  font-stretch: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  color: #1b1b1b;
+}
+
+.beta-alert {
+  border: solid 0.5px #b7b7b7;
+  padding: 16px 11px;
+  margin: 30px auto;
+  font-size: 14px;
+  font-weight: normal;
+  font-stretch: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  text-align: center;
+  color: #1b1b1b;
+  max-width: 360px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.beta-alert svg {
+  color: #140055;
+  margin-right: 10px;
+  font-size: 24px;
+}
+
+.back-link { 
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.unshown {
+  opacity: 0;
+}
+
+.base-animation {
+  -o-animation-duration: 950ms;
+  -moz-animation-duration: 950ms;
+  -webkit-animation-duration: 950ms;
+  animation-duration: 950ms;
+  -o-animation-timing-function: ease-in-out;
+  -moz-animation-timing-function: ease-in-out;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-timing-function: ease-in-out;
+  -o-animation-delay: 100ms;
+  -moz-animation-delay: 100ms;
+  -webkit-animation-delay: 100ms;
+  animation-delay: 100ms;
+  opacity: 1;
+  -o-transition: opacity 0s ease-out 250ms;
+  -moz-transition: opacity 0s ease-out 250ms;
+  -webkit-transition: opacity 0s ease-out 250ms;
+  transition: opacity 0s ease-out 250ms;
+  overflow: hidden;
+}
+
+.base-animation.slide-up {
+  -o-animation-name: slide-up;
+  -moz-animation-name: slide-up;
+  -webkit-animation-name: slide-up;
+  animation-name: slide-up;
+}
+.base-animation.slide-down {
+  -o-animation-name: slide-down;
+  -moz-animation-name: slide-down;
+  -webkit-animation-name: slide-down;
+  animation-name: slide-down;
+}
+.base-animation.slide-left {
+  -o-animation-name: slide-left;
+  -moz-animation-name: slide-left;
+  -webkit-animation-name: slide-left;
+  animation-name: slide-left;
+}
+.base-animation.slide-right {
+  -o-animation-name: slide-right;
+  -moz-animation-name: slide-right;
+  -webkit-animation-name: slide-right;
+  animation-name: slide-right;
+}
+
+@-moz-keyframes slide-down {
+  from {
+    -moz-transform: translateY(-100%);
+    transform: translateY(-100%);
+  } 
+  to {
+    -moz-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@-webkit-keyframes slide-down {
+  from {
+    -webkit-transform: translateY(-100%);
+    transform: translateY(-100%);
+  } 
+  to {
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@-o-keyframes slide-down {
+  from {
+    -o-transform: translateY(-100%);
+    transform: translateY(-100%);
+  } 
+  to {
+    -o-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  } 
+  to {
+    transform: translateY(0%);
+  }
+}
+@-o-keyframes slide-up {
+  from {
+    -o-transform: translateY(100%);
+    transform: translateY(100%);
+  } 
+  to {
+    -o-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@-moz-keyframes slide-up {
+  from {
+    -moz-transform: translateY(100%);
+    transform: translateY(100%);
+  } 
+  to {
+    -moz-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@-webkit-keyframes slide-up {
+  from {
+    -webkit-transform: translateY(100%);
+    transform: translateY(100%);
+  } 
+  to {
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  } 
+  to {
+    transform: translateY(0%);
+  }
+}
+@-o-keyframes slide-left {
+  from {
+    -o-transform: translateX(100%);
+    transform: translateX(100%);
+  } 
+  to {
+    -o-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@-moz-keyframes slide-left {
+  from {
+    -moz-transform: translateX(100%);
+    transform: translateX(100%);
+  } 
+  to {
+    -moz-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@-webkit-keyframes slide-left {
+  from {
+    -webkit-transform: translateX(100%);
+    transform: translateX(100%);
+  } 
+  to {
+    -webkit-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@keyframes slide-left {
+  from {
+    transform: translateX(100%);
+  } 
+  to {
+    transform: translateX(0%);
+  }
+}
+@-o-keyframes slide-right {
+  from {
+    -o-transform: translateX(-100%);
+    transform: translateX(-100%);
+  } 
+  to {
+    -o-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@-moz-keyframes slide-right {
+  from {
+    -moz-transform: translateX(-100%);
+    transform: translateX(-100%);
+  } 
+  to {
+    -moz-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@-webkit-keyframes slide-right {
+  from {
+    -webkit-transform: translateX(-100%);
+    transform: translateX(-100%);
+  } 
+  to {
+    -webkit-transform: translateX(0%);
+    transform: translateX(0%);
+  }
+}
+@keyframes slide-right {
+  from {
+    transform: translateX(-100%);
+  } 
+  to {
+    transform: translateX(0%);
+  }
+}
+
+.bounce-animation {
+  -o-animation-duration: 300ms;
+  -moz-animation-duration: 300ms;
+  -webkit-animation-duration: 300ms;
+  animation-duration: 300ms;
+  -o-animation-direction: alternate;
+  -moz-animation-direction: alternate;
+  -webkit-animation-direction: alternate;
+  animation-direction: alternate;
+  -o-animation-iteration-count: 5;
+  -moz-animation-iteration-count: 5;
+  -webkit-animation-iteration-count: 5;
+  animation-iteration-count: 5;
+  -o-animation-name: bounce;
+  -moz-animation-name: bounce;
+  -webkit-animation-name: bounce;
+  animation-name: bounce;
+}
+@-o-keyframes bounce {
+  to { 
+    -o-transform: scale(1.2); 
+    transform: scale(1.2); 
+  }
+}
+@-moz-keyframes bounce {
+  to { 
+    -moz-transform: scale(1.2); 
+    transform: scale(1.2); 
+  }
+}
+@-webkit-keyframes bounce {
+  to {
+    -webkit-transform: scale(1.2); 
+    transform: scale(1.2);  
+  }
+}
+@keyframes bounce {
+  to { 
+    transform: scale(1.2); 
+  }
+}
+
+.show-animation {
+  -o-animation-duration: 1000ms;
+  -moz-animation-duration: 1000ms;
+  -webkit-animation-duration: 1000ms;
+  animation-duration: 1000ms;
+  -o-animation-name: show-animation;
+  -moz-animation-name: show-animation;
+  -webkit-animation-name: show-animation;
+  animation-name: show-animation;
+}
+@-o-keyframes show-animation {
+  from {
+    opacity: 0;
+  }
+  to { 
+    opacity: 1;
+  }
+}
+@-moz-keyframes show-animation {
+  from {
+    opacity: 0;
+  }
+  to { 
+    opacity: 1;
+  }
+}
+@-webkit-keyframes show-animation {
+  from {
+    opacity: 0;
+  }
+  to { 
+    opacity: 1;
+  }
+}
+@keyframes show-animation {
+  from {
+    opacity: 0;
+  }
+  to { 
+    opacity: 1;
+  }
+}
+
+.initial-loading {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  z-index: 1;
+  color: black;
+  font-size: 20px;
+}

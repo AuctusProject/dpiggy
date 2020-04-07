@@ -1,0 +1,7 @@
+.swal2-container {
+    z-index: 2000 !important;
+}
+
+body, div, span, button, i, a, strong, small, section, ul, li, p, h1, h2, h3, h4, h5, h6, form, input, label, textarea, select, article, table, thead, tbody, td, tr {
+    font-family: "Merriweather Sans", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}

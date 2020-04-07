@@ -1,0 +1,131 @@
+.deposit-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.deposit-input-wrapper {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.deposit-input-wrapper input {
+    border: none;
+    border-bottom: solid 1px #b7b7b7;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 300;
+    padding: 5px 20px;
+    color: #b3b3b3;
+    outline: none;
+    width: 280px;
+}
+
+.deposit-input-wrapper .input-container {
+    height: 45px;
+    display: flex;
+}
+
+.deposit-input-wrapper  .coin-container {
+    position: absolute;
+    height: 35px;
+    margin: 5px;
+}
+
+.coin-container img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.destination-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f2f2f2;
+}
+
+.destination-wrapper .black-title {
+    margin-top: 28px;
+    margin-bottom: 28px;
+
+}
+
+.assets-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 300px;
+    color: #1b1b1b;
+    font-size: 12px;
+    font-weight: normal;
+    font-stretch: normal;
+    font-style: normal;
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.assets-title .vr {
+    width: 1px;
+    height: 26px;
+    background: #b7b7b7;
+}
+
+.allocation-item-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 10px;
+}
+
+.allocation-item-container .input-value {
+    border-radius: 4px;
+    width: 80px;
+    height: 45px;
+    border: solid 1px #b7b7b7;
+    font-size: 14px;
+    text-align: center;
+    color: #333333;
+}
+
+.destination-wrapper .total-value.total-value-error {
+    color: #b90000; 
+}
+
+.destination-wrapper .total-value {
+    width: 220px;
+    height: 45px;
+    border-radius: 4px;
+    border: solid 1px #b7b7b7;
+    background-color: #e6e6e6;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #414141; 
+}
+
+.total-message {
+    font-size: 12px;
+    text-align: center;
+    color: #1b1b1b;
+}
+
+.button-wrapper {
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.swap-eth-to-dai {
+    margin-top: 10px;
+}
+
+.action-btn .fa-spin {
+    margin-left: 5px;
+    margin-right: 5px;
+}

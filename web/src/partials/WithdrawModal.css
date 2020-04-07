@@ -1,0 +1,45 @@
+.withdraw-modal .modal-header  {
+  padding: 0 !important;
+  margin: 0 !important; 
+  border: none !important;
+  justify-content: flex-end !important;
+}
+
+.withdraw-modal .modal-header > button {
+  padding: 0px 5px !important;
+  margin: 0 !important; 
+  border: none !important;
+}
+
+.withdraw-modal .modal-header > button:focus {
+  outline: none !important;
+}
+
+.withdraw-modal .modal-body {
+  padding: 0px 20px 40px 20px !important;
+}
+
+.withdraw-modal-title {
+  margin-top: 20px;
+}
+
+.withdraw-modal .coin-details {
+  justify-content: center;
+  margin: auto;
+}
+
+.withdraw-options {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.withdraw-option {
+  cursor: pointer;
+}
+
+.withdraw-option svg{
+  margin-right: 8px;
+}

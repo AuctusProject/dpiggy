@@ -1,0 +1,52 @@
+.metamask-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-content: center;
+  align-items: center;
+}
+
+.logo-img {
+  max-height: 125px;
+  margin-top: 25px;
+}
+
+.metamask-btn {
+  margin-top: 34px;
+  margin-bottom: 34px;
+}
+
+.metamask-modal .modal-header  {
+  padding: 0 !important;
+  margin: 0 !important; 
+  border: none !important;
+  justify-content: flex-end !important;
+}
+
+.metamask-modal .modal-header > button {
+  padding: 0px 5px !important;
+  margin: 0 !important; 
+  border: none !important;
+}
+
+.metamask-modal .modal-header > button:focus {
+  outline: none !important;
+}
+
+.metamask-modal .modal-body {
+  padding: 0px 20px 40px 20px !important;
+}
+
+.metamask-modal-title {
+  margin-top: 38px;
+  margin-bottom: 0px;
+}
+
+.metamask-modal-subtitle {
+  font-size: 16px;
+  font-weight: normal;
+  font-stretch: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  color: #1b1b1b;
+}
