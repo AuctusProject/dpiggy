@@ -268,7 +268,7 @@ class Home extends Component {
             <div className={("col-md-3 why-item" + this.state.whyAnimation)}>
               <img src="/images/icon_cost.png" alt=""></img>
               <div className="why-item-title">Cost Efficient</div>
-              <div className="why-item-subtitle">Transparent 0.50% per year fee, which covers all Ethereum gas costs for rebalancing.</div>
+              <div className="why-item-subtitle">Transparent 0.10% per year fee, which covers all Ethereum gas costs for rebalancing.</div>
             </div>
           </div>
         </div>
