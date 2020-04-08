@@ -35,7 +35,7 @@ class DashboardContent extends Component {
   }
 
   withdrawAll = () => {
-    confirm("You want to withdraw all and finish your dPiggy?", (confirm) => {
+    confirm("Do you want to withdraw all your assets?", (confirm) => {
       if (confirm) {
         this.confirmWithdrawAll()
       }
@@ -45,39 +45,32 @@ class DashboardContent extends Component {
   confirmWithdrawAll = () => {
     this.props.setLoadingWithdrawAll(true, "Waiting for transaction confirmation...")
     finishAll(this.context.web3.selectedAccount, this.getInvestedLength()).then(result => {
-      if (result) {
-        this.props.setLoadingWithdrawAll(true, "Finishing your dPiggy...")
-        checkTransactionIsMined(result).then((isSuccess) => {
-          this.props.setLoadingWithdrawAll(false)
-          if (isSuccess) {
-            success("Your dPiggy was finished successfully.").then(() => {
-              this.props.loadDashboardData()
-            })
-          }
-        })
-      }
-      else {
-        this.props.setLoadingWithdrawAll(false)
-      }
+      this.afterWithdrawal(result)
     })
-  }
+  }  
 
   confirmWithdrawCoin = (coinCode, method) => {
     this.props.setLoadingWithdrawAll(true, "Waiting for transaction confirmation...")
     method(this.context.web3.selectedAccount, availableCoins[coinCode].address).then(result => {
-      if (result) {
-        this.props.setLoadingWithdrawAll(true, "Waiting for transaction processing...")
-        checkTransactionIsMined(result).then((success) => {
-          this.props.setLoadingWithdrawAll(false)
-          if (success) {
-            this.props.loadDashboardData()
-          }
-        })
-      }
-      else {
-        this.props.setLoadingWithdrawAll(false)
-      }
+      this.afterWithdrawal(result)
     })
+  }
+
+  afterWithdrawal = (txHash) => {
+    if (txHash) {
+      this.props.setLoadingWithdrawAll(true, "Processing your withdrawal...")
+      checkTransactionIsMined(txHash).then((isSuccess) => {
+        this.props.setLoadingWithdrawAll(false)
+        if (isSuccess) {
+          success("Your withdrawal has been processed successfully.").then(() => {
+            this.props.loadDashboardData()
+          })
+        }
+      })
+    }
+    else {
+      this.props.setLoadingWithdrawAll(false)
+    }
   }
 
   hasCryptoPurchased = (coinCode) => {

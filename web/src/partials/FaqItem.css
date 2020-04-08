@@ -36,4 +36,5 @@
 
 .faq-item .card-body {
   padding-top: 0;
+  white-space: pre-wrap;
 }
