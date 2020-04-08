@@ -7,5 +7,5 @@ export const faqData = [
     {id: 6, q:"Can I withdraw anytime?", a:"Yes, you can withdraw your assets any time."},
     {id: 7, q:"How is Auctus Inc. related to dPiggy?", a:"Auctus Inc. is the company that has built the dPiggy smart contracts and the dPiggy web application."},
     {id: 8, q:"What will the fee be used for?", a:"100% of fees generated with dPiggy will be used to buy & burn AUC tokens, the company responsible for dPiggy development."},
-    {id: 9, q:"How can I get 100% discount on fees?", a:"Go to your dashboard, click on \"save fees\". You will be able to purchase 10,000 AUC (if you don't have on you wallet) and then lock this amount to stop paying fees.\n\nThis tokens can be returned to your wallet by clicking on \"withdraw all\" and terminating your dPiggy."}
+    {id: 9, q:"How can I get 100% discount on fees?", a:"Go to your dashboard, click on \"save fees\". You will be able to purchase 10,000 AUC (if you don't have on you wallet) and then lock this amount to stop paying fees.\n\nThese tokens can be returned to your wallet by clicking on \"withdraw all\" and terminating your dPiggy."}
 ]
