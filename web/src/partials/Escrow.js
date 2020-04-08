@@ -38,7 +38,7 @@ class Escrow extends Component {
 
   onEscrowClick = (e) => {
     this.setState({ loading: true, loadingMessage: "Please, confirm the transaction" })
-    sendEscrow(this.context.web3.selectedAccount, parseFloat(this.state.aucNeeded).toFixed(0)).then(result => {
+    sendEscrow(this.context.web3.selectedAccount, this.state.aucNeeded.toString()).then(result => {
       if (result) {
         this.setState({ loading: true, loadingMessage: "Sending AUC to dPiggy..." })
         checkTransactionIsMined(result).then((success) => {
