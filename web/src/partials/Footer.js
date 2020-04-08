@@ -41,9 +41,9 @@ class Footer extends Component {
                 </div>
               </div>
               <div className="col-4 social-icons">
-                <a target="_blank" href="https://github.com/AuctusProject/dpiggy"><FontAwesomeIcon icon={faGithub} /></a>
-                <a target="_blank" href="https://t.me/AuctusProject"><FontAwesomeIcon icon={faTelegramPlane} /></a>
-                <a target="_blank" href="https://twitter.com/dPiggyDAO"><FontAwesomeIcon icon={faTwitter} /></a>
+                <a target="_blank" rel="noopener noreferrer" href="https://github.com/AuctusProject/dpiggy"><FontAwesomeIcon icon={faGithub} /></a>
+                <a target="_blank" rel="noopener noreferrer" href="https://t.me/AuctusProject"><FontAwesomeIcon icon={faTelegramPlane} /></a>
+                <a target="_blank" rel="noopener noreferrer" href="https://twitter.com/dPiggyDAO"><FontAwesomeIcon icon={faTwitter} /></a>
               </div>
             </div>
           </div>
