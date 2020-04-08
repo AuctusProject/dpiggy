@@ -2,7 +2,7 @@ import './Footer.css'
 import React, { Component } from 'react'
 import { withRouter, NavLink } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTelegramPlane, faTwitter } from '@fortawesome/free-brands-svg-icons'
+import { faTelegramPlane, faTwitter, faGithub } from '@fortawesome/free-brands-svg-icons'
 
 
 class Footer extends Component {
@@ -41,6 +41,7 @@ class Footer extends Component {
                 </div>
               </div>
               <div className="col-4 social-icons">
+                <a target="_blank" href="https://github.com/AuctusProject/dpiggy"><FontAwesomeIcon icon={faGithub} /></a>
                 <a target="_blank" href="https://t.me/AuctusProject"><FontAwesomeIcon icon={faTelegramPlane} /></a>
                 <a target="_blank" href="https://twitter.com/dPiggyDAO"><FontAwesomeIcon icon={faTwitter} /></a>
               </div>
