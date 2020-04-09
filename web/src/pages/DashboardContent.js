@@ -94,9 +94,21 @@ class DashboardContent extends Component {
 
   onHideWithdraw = (confirm, onlyInterest) => {
     if (confirm) {
-      this.confirmWithdrawCoin(this.state.withdrawModal, onlyInterest ? redeem : finish)
+      this.confirmWithdrawCoin(this.state.withdrawModal, this.getWithdrawMethod(onlyInterest))
     }
     this.setState({withdrawModal: null})
+  }
+
+  getWithdrawMethod = (onlyInterest) => {
+    if (onlyInterest) {
+      return redeem
+    }
+    else {
+      if (this.props.userHasEscrow != null && this.props.userHasEscrow && this.getInvestedLength() === 1) {
+        return finishAll
+      }
+      return finish
+    }
   }
 
   onRefreshClick = () => {
@@ -140,7 +152,7 @@ class DashboardContent extends Component {
       <div className="subtitle">Earning {this.formatedPercentage()} APY</div>
       <div className="action-buttons">
         <div className="dpiggy-btn outline-btn" onClick={this.onNewDeposit}>New Deposit</div>
-        <div className="dpiggy-btn action-btn" onClick={this.withdrawAll}>Withdraw All</div>
+        {this.props.totalBalance > 0 && <div className="dpiggy-btn action-btn" onClick={this.withdrawAll}>Withdraw All</div>}
       </div>
       <div className="button-wrapper">
         <div className={"refresh-link "+(this.state.refreshing ? "disabled" : "")} onClick={this.onRefreshClick}>
@@ -171,8 +183,8 @@ class DashboardContent extends Component {
               <div className="dashboard-card-label">Fee</div>
               <div className="dashboard-card-value">
                 <div>{formatWithSignificantDigits(this.props.annualFee * 100, 2, true)}% APR</div>                
-                {this.props.userHasEscrow != null && !this.props.userHasEscrow && <div onClick={this.goToEscrow} className="dashboard-card-link clickable">Save fees</div>}
-                {this.props.userHasEscrow != null && this.props.userHasEscrow && <div className="dashboard-card-link"><FontAwesomeIcon icon={faCheck}></FontAwesomeIcon> Saving fees</div>}
+                {this.props.totalBalance > 0 && this.props.userHasEscrow != null && !this.props.userHasEscrow && <div onClick={this.goToEscrow} className="dashboard-card-link clickable">Save fees</div>}
+                {this.props.totalBalance > 0 && this.props.userHasEscrow != null && this.props.userHasEscrow && <div className="dashboard-card-link"><FontAwesomeIcon icon={faCheck}></FontAwesomeIcon> Saving fees</div>}
               </div>              
             </div>
           </div>

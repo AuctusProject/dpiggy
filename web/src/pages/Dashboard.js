@@ -37,9 +37,7 @@ class Dashboard extends Component {
       if (!dontShowLoading) {
         this.setState({loadingDashboard: true})
       }
-      else {
-        this.props.refreshBalances(this.context.web3.selectedAccount)
-      }
+      this.props.refreshBalances(this.context.web3.selectedAccount)
       getDailyFee().then(dailyFee => {
         var annualFee = (Math.pow(1+dailyFee, 365) - 1)
         this.setState({annualFee: annualFee})
