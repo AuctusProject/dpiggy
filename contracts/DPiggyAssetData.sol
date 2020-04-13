@@ -172,6 +172,12 @@ contract DPiggyAssetData is DPiggyBaseProxyData, ReentrancyGuard {
     event Finish(address indexed user, uint256 totalRedeemed, uint256 yield, uint256 fee, uint256 totalAucBurned);
     
     /**
+     * @dev Emitted when the contract is initialized with a previous data due to a proxy migration.
+     * @param previousContract The previous contract address.
+     */
+    event SetMigration(address previousContract);
+
+    /**
      * @dev The ERC20 token address on the chain or '0x0' for Ethereum. 
      * It is the asset for the respective contract. 
      */
@@ -208,6 +214,13 @@ contract DPiggyAssetData is DPiggyBaseProxyData, ReentrancyGuard {
      * _value is the difference of Dai.
      */
     mapping(uint256 => uint256) public totalBalanceNormalizedDifference;
+    
+    /**
+     * @dev The difference between the amount of Dai with AUC escrowed and the respective value normalized to the last Compound redeem execution time.
+     * _key is the execution Id.
+     * _value is the difference of Dai.
+     */
+    mapping(uint256 => uint256) public escrowNormalizedDifference;
     
     /**
      * @dev The amount of Dai that has a fee exemption for the respective execution due to the user deposit time.
