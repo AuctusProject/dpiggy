@@ -254,49 +254,41 @@ contract DPiggy is DPiggyData, DPiggyInterface, AucReceiverInterface {
     }
     
     /**
-     * @dev Function to set the new proxy for the dPiggy assets and migrates the previous data.
+     * @dev Function to set the new proxy for the dPiggy asset and migrates the previous data.
      * Only can be called by the admin.
+     * @param tokenAddress The ERC20 token address on the chain or '0x0' for Ethereum. 
      * @param _assetImplementation New implementation contract address.
      * @param users The users to copy their stored data.
      */
-    function migrateAssetProxy(address _assetImplementation, address[] calldata users) onlyAdmin external {
+    function migrateAssetProxy(address tokenAddress, address _assetImplementation, address[] calldata users) onlyAdmin external {
+        AssetData storage assetData = assetsData[tokenAddress];
+        require(assetData.time > 0, "DPiggy::migrateAssetProxy: Invalid tokenAddress");
+        
+        // Encoded data to initialize the new proxy with the previous asset data.
+        bytes memory initData = abi.encodeWithSignature("initMigratingData(address,address[])", assetData.proxy, users);    
+        address newProxy = address(new DPiggyAssetProxy(address(this), _assetImplementation, initData));
         
         // Encoded data to resign the previous implementation of the asset.
         bytes memory resignData = abi.encodeWithSignature("resignAssetForMigration(address[])", users);
+        // Resign the implementation and get the cDai and asset amount.
+        (bool success, bytes memory returnData) = assetData.proxy.call(resignData);
+        assert(success);
+        uint256[] memory amounts = _getUint256(returnData);
         
-        EIP20Interface _compound = EIP20Interface(compound);
-        
-        // Iterate over all assets.
-        for (uint256 i = 0; i < assets.length; i++) {
-            AssetData storage assetData = assetsData[assets[i]];
-            
-            // Encoded data to initialize the new proxy with the previous asset data.
-            bytes memory initData = abi.encodeWithSignature("initMigratingData(address,address[])", assetData.proxy, users);    
-            address newProxy = address(new DPiggyAssetProxy(address(this), _assetImplementation, initData));
-            
-            // Resign the implementation and get the cDai and asset amount.
-            (bool success, bytes memory returnData) = assetData.proxy.call(resignData);
-            assert(success);
-            uint256[] memory amounts = _getUint256(returnData);
-            
-            // Transfer the amounts for the new proxy contract.
-            if (amounts[0] > 0) {
-                assert(_compound.transfer(newProxy, amounts[0]));
+        // Transfer the amounts for the new proxy contract.
+        if (amounts[0] > 0) {
+            assert(EIP20Interface(compound).transfer(newProxy, amounts[0]));
+        }
+        if (amounts[1] > 0) {
+            if (tokenAddress != address(0)) {
+                assert(EIP20Interface(tokenAddress).transfer(newProxy, amounts[1]));
+            } else {
+                Address.toPayable(newProxy).transfer(amounts[1]);
             }
-            if (amounts[1] > 0) {
-                if (assets[i] != address(0)) {
-                    EIP20Interface token = EIP20Interface(assets[i]);
-                    assert(token.transfer(newProxy, amounts[1]));
-                } else {
-                    Address.toPayable(newProxy).transfer(amounts[1]);
-                }
-            }
-            
-            // Update the asset proxy address.
-            assetData.proxy = newProxy;
         }
         
-        assetImplementation = _assetImplementation;
+        // Update the asset proxy address.
+        assetData.proxy = newProxy;
     }
     
     /**

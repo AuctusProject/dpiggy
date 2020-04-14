@@ -85,13 +85,20 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         executionId = _getContractUint256(previousContract, abi.encodeWithSignature("executionId()"));
         
         for (uint256 id = 0; id <= executionId; ++id) {
-            totalBalanceNormalizedDifference[id] = _getContractUint256(previousContract, abi.encodeWithSignature("totalBalanceNormalizedDifference(uint256)", id));
-            feeExemptionAmountForUserBaseData[id] = _getContractUint256(previousContract, abi.encodeWithSignature("feeExemptionAmountForUserBaseData(uint256)", id));
+            uint256 nextId = id + 1;
+            totalBalanceNormalizedDifference[nextId] = _getContractUint256(previousContract, abi.encodeWithSignature("totalBalanceNormalizedDifference(uint256)", nextId));
+            feeExemptionAmountForUserBaseData[nextId] = _getContractUint256(previousContract, abi.encodeWithSignature("feeExemptionAmountForUserBaseData(uint256)", nextId));
             executions[id] = _getContractExecution(previousContract, abi.encodeWithSignature("executions(uint256)", id));
         }
-
+        
         for (uint256 index = 0; index < users.length; ++index) {
             usersData[users[index]] = _getContractUserData(previousContract, abi.encodeWithSignature("usersData(address)", users[index]));
+            
+            UserData storage userData = usersData[users[index]];
+            // Whether the user has AUC escrow the escrow normalized difference must be set.
+            if (userData.currentAllocated > 0 && DPiggyInterface(admin).escrowStart(users[index]) > 0) {
+                _setEscrowNormalizedDifferenceForNextExecution(true, _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, executions[executionId].rate));
+            }
         }
 
         /* Initialize the stored data that controls the reentrancy guard.
