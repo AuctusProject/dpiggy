@@ -91,15 +91,20 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             executions[id] = _getContractExecution(previousContract, abi.encodeWithSignature("executions(uint256)", id));
         }
         
+        uint256 usersBalance = 0;
         for (uint256 index = 0; index < users.length; ++index) {
             usersData[users[index]] = _getContractUserData(previousContract, abi.encodeWithSignature("usersData(address)", users[index]));
             
             UserData storage userData = usersData[users[index]];
+            usersBalance = usersBalance.add(userData.currentAllocated);
+            
             // Whether the user has AUC escrow the escrow normalized difference must be set.
             if (userData.currentAllocated > 0 && DPiggyInterface(admin).escrowStart(users[index]) > 0) {
                 _setEscrowNormalizedDifferenceForNextExecution(true, _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, executions[executionId].rate));
             }
         }
+        
+        require(usersBalance == totalBalance, "DPiggyAsset::initMigratingData: Invalid users");
 
         /* Initialize the stored data that controls the reentrancy guard.
          * Due to the proxy, it must be set on a separate initialize method instead of the constructor.
@@ -385,7 +390,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with AUC escrowed.
                 if (feeExemptionAmountForAucEscrowed > 0) {
                     uint256 escrowAmountRate = feeExemptionAmountForAucEscrowed.mul(lastExecution.rate).div(feeExemptionAmountForAucEscrowed.sub(escrowNormalizedDifference[(executionId+1)]));
-                    uint256 maxFeeAmount= totalRedeemed.sub(rate.mul(daiAmount).div(escrowAmountRate).sub(daiAmount));
+                    uint256 maxFeeAmount= totalRedeemed.sub(rate.mul(feeExemptionAmountForAucEscrowed).div(escrowAmountRate).sub(feeExemptionAmountForAucEscrowed));
                     
                     if (feeAmount > maxFeeAmount) {
                         feeAmount = maxFeeAmount;
