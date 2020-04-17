@@ -378,8 +378,12 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         if (totalBalance > 0) {
             
             daiAmount = _compound.balanceOfUnderlying(address(this));
-            totalRedeemed = daiAmount.sub(totalBalance);
             rate = _getRateForExecution(daiAmount, lastExecution);
+            
+            totalRedeemed = daiAmount.sub(totalBalance);
+            if (isCompound) {
+                totalRedeemed = totalRedeemed.sub(_getRemainingExecutionProfit(lastExecution));
+            }
             
             totalFeeDeduction = feeExemptionAmountForUserBaseData[(executionId+1)].add(feeExemptionAmountForAucEscrowed);
             uint256 regardedAmountWithFee = totalBalance.sub(totalFeeDeduction);
@@ -407,10 +411,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             
             if (totalRedeemed > 0) {
                 _assertCompoundReturn(_compound.redeemUnderlying(totalRedeemed));
-            } else {
-                rate = lastExecution.rate;
             }
-            
         } else {
             rate = lastExecution.rate;
         }
@@ -505,8 +506,8 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 (uint256 executionsProfit,,uint256 feeAmount) = _getUserProfitsAndFeeAmount(escrowStart, userData);
                 userAccruedInterest = executionsProfit.sub(feeAmount);
                 
-                //Set the user accrued interest to be subtracted from total balance on next Compound redeem execution. 
-                totalBalanceNormalizedDifference[(executionId+1)] = totalBalanceNormalizedDifference[(executionId+1)].add(userAccruedInterest);
+                //Set the user accrued interest to be subtracted from the remaining balance on next Compound redeem execution. 
+                remainingValueRedeemed[(executionId+1)] = remainingValueRedeemed[(executionId+1)].add(userAccruedInterest);
                 
                 userAccruedInterest = userAccruedInterest.add(_getAccruedInterestForExecution(executionId, currentRate, userAccruedInterest, userData));
             } else {
@@ -585,10 +586,19 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     function _getRateForExecution(uint256 amount, Execution storage lastExecution) internal view returns(uint256) {
         uint256 remainingBalance = 0;
         //Whether the asset is cDai then the net profit continues on Compound contract.
-        if (isCompound && lastExecution.totalRedeemed > 0) {
-            remainingBalance = lastExecution.totalDai.sub(lastExecution.totalBalance).sub(lastExecution.totalRedeemed);
+        if (isCompound && lastExecution.totalDai > 0) {
+            remainingBalance = _getRemainingExecutionProfit(lastExecution);
         }
         return amount.mul(lastExecution.rate).div(totalBalance.add(remainingBalance).sub(totalBalanceNormalizedDifference[(executionId+1)]));
+    }
+    
+    /**
+     * @dev Internal function to get the remaining profit on the Compound contract from the last redeemed execution.
+     * @param lastExecution The last Compound redeem execution data.
+     * @return The remaining profit.
+     */
+    function _getRemainingExecutionProfit(Execution storage lastExecution) internal view returns(uint256) {
+        return lastExecution.totalDai.sub(lastExecution.totalBalance).sub(lastExecution.totalRedeemed).sub(remainingValueRedeemed[(executionId+1)]);
     }
     
     /**
@@ -656,7 +666,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             }
             for (uint256 i = (userData.baseExecutionId+1); i <= executionId; i++) {
                 Execution storage execution = executions[i];
-                if (execution.totalRedeemed > 0) {   
+                if (execution.totalDai > 0) {   
                     
                     uint256 userAccruedInterest = _getAccruedInterestForExecution(i - 1, execution.rate, remainingBalance, userData);
                     

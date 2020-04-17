@@ -223,6 +223,14 @@ contract DPiggyAssetData is DPiggyBaseProxyData, ReentrancyGuard {
     mapping(uint256 => uint256) public escrowNormalizedDifference;
     
     /**
+     * @dev The remaining profit redeemed from Compound.
+     * Used on Compound asset to adjust the remaining value on the contract between executions.
+     * _key is the execution Id.
+     * _value is the redeemed value.
+     */
+    mapping(uint256 => uint256) public remainingValueRedeemed;
+    
+    /**
      * @dev The amount of Dai that has a fee exemption for the respective execution due to the user deposit time.
      * _key is the execution Id.
      * _value is the amount of Dai.
