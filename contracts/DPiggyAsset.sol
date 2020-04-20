@@ -394,7 +394,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with AUC escrowed.
                 if (feeExemptionAmountForAucEscrowed > 0) {
                     uint256 escrowAmountRate = feeExemptionAmountForAucEscrowed.mul(lastExecution.rate).div(feeExemptionAmountForAucEscrowed.sub(escrowNormalizedDifference[(executionId+1)]));
-                    uint256 maxFeeAmount= totalRedeemed.sub(rate.mul(feeExemptionAmountForAucEscrowed).div(escrowAmountRate).sub(feeExemptionAmountForAucEscrowed));
+                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(feeExemptionAmountForAucEscrowed, rate, escrowAmountRate));
                     
                     if (feeAmount > maxFeeAmount) {
                         feeAmount = maxFeeAmount;
@@ -646,7 +646,11 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         uint256 currentRate, 
         uint256 previousRate
     ) internal pure returns(uint256) {
-        return amount.mul(currentRate).div(previousRate).sub(amount);
+        if (currentRate > previousRate) {
+            return amount.mul(currentRate).div(previousRate).sub(amount);
+        } else {
+            return 0;
+        }
     }
     
     /**
@@ -753,7 +757,11 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         uint256 currentRate,
         uint256 previousRate
     ) internal pure returns(uint256) {
-        return totalAmount.sub(totalAmount.mul(previousRate).div(currentRate));
+        if (currentRate > previousRate) {
+            return totalAmount.sub(totalAmount.mul(previousRate).div(currentRate));
+        } else {
+            return 0;
+        }
     }
     
     /**
