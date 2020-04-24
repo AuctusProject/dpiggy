@@ -615,6 +615,19 @@ const getCurrentUserData = (proxy, user) => {
   });
 };
 
+const getUserProfitsAndFeeAmount = (proxy, user) => {   
+  return new Promise((resolve, reject) => { 
+    return callEthereum("eth_call", {"to": proxy, "data": "0x7bf9ebe9" + addressToData(user)}).then((result) => {
+      const uints = parseDataToUint256(result);
+      resolve({
+        userProfit: uints[0],
+        userAssetProfit: uints[1],
+        userFeeAmount: uints[2]
+      });
+    }).catch((err) => reject(err)); 
+  });
+};
+
 const getPercentagePrecision = () => {   
   return new Promise((resolve, reject) => { 
     return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x18952383"}).then((result) => {
@@ -974,38 +987,47 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
       }
       
       const userPromises = [];
+      const userProfitsPromises = [];
       const users = Object.keys(userData);
       for (let j = 0; j < users.length; ++j) {
         userPromises.push(getCurrentUserData(proxy, users[j]));
+        userProfitsPromises.push(getUserProfitsAndFeeAmount(proxy, users[j]));
       }
-      Promise.all(userPromises).then((res) =>
+      Promise.all(userPromises).then((usersDataResponse) =>
       {
-        let calcTotalUsersAssetProfit = BigInt(0);
-        for (let k = 0; k < users.length; ++k) {
-          _assertValues(msg, users[k] + " userData", "previousAllocated", userData[users[k]].previousAllocated, res[k].previousAllocated);
-          _assertValues(msg, users[k] + " userData", "baseExecutionAmountForFee", userData[users[k]].baseExecutionAmountForFee, res[k].baseExecutionAmountForFee);
-          _assertValues(msg, users[k] + " userData", "baseExecutionAccumulatedAmount", userData[users[k]].baseExecutionAccumulatedAmount, res[k].baseExecutionAccumulatedAmount);
-          _assertValues(msg, users[k] + " userData", "baseExecutionAccumulatedWeightForRate", userData[users[k]].baseExecutionAccumulatedWeightForRate, res[k].baseExecutionAccumulatedWeightForRate);
-          _assertValues(msg, users[k] + " userData", "baseExecutionAvgRate", userData[users[k]].baseExecutionAvgRate, res[k].baseExecutionAvgRate);
-          _assertValues(msg, users[k] + " userData", "baseExecutionId", userData[users[k]].baseExecutionId, res[k].baseExecutionId);
-          _assertValues(msg, users[k] + " userData", "redeemed", userData[users[k]].redeemed, res[k].redeemed);
+        Promise.all(userProfitsPromises).then((usersProfitResponse) =>
+        {
+          let calcTotalUsersAssetProfit = BigInt(0);
+          for (let k = 0; k < users.length; ++k) {
+            _assertValues(msg, users[k] + " userData", "previousAllocated", userData[users[k]].previousAllocated, usersDataResponse[k].previousAllocated);
+            _assertValues(msg, users[k] + " userData", "baseExecutionAmountForFee", userData[users[k]].baseExecutionAmountForFee, usersDataResponse[k].baseExecutionAmountForFee);
+            _assertValues(msg, users[k] + " userData", "baseExecutionAccumulatedAmount", userData[users[k]].baseExecutionAccumulatedAmount, usersDataResponse[k].baseExecutionAccumulatedAmount);
+            _assertValues(msg, users[k] + " userData", "baseExecutionAccumulatedWeightForRate", userData[users[k]].baseExecutionAccumulatedWeightForRate, usersDataResponse[k].baseExecutionAccumulatedWeightForRate);
+            _assertValues(msg, users[k] + " userData", "baseExecutionAvgRate", userData[users[k]].baseExecutionAvgRate, usersDataResponse[k].baseExecutionAvgRate);
+            _assertValues(msg, users[k] + " userData", "baseExecutionId", userData[users[k]].baseExecutionId, usersDataResponse[k].baseExecutionId);
+            _assertValues(msg, users[k] + " userData", "redeemed", userData[users[k]].redeemed, usersDataResponse[k].redeemed);
 
-          calcTotalUsersAssetProfit += userData[users[k]].previousAssetAmount;
-        }
+            _assertValues(msg, users[k] + " userProfitsAndFee", "profit", userData[users[k]].previousProfit, usersProfitResponse[k].userProfit);
+            _assertValues(msg, users[k] + " userProfitsAndFee", "assetProfit", userData[users[k]].previousAssetAmount, usersProfitResponse[k].userAssetProfit);
+            _assertValues(msg, users[k] + " userProfitsAndFee", "feeAmount", userData[users[k]].previousFeeAmount, usersProfitResponse[k].userFeeAmount);
 
-        if (asset == "0x0000000000000000000000000000000000000000") {
-          getEthBalance(proxy).then((balance) => {
-            _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
+            calcTotalUsersAssetProfit += userData[users[k]].previousAssetAmount;
+          }
+
+          if (asset == "0x0000000000000000000000000000000000000000") {
+            getEthBalance(proxy).then((balance) => {
+              _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
+              resolve(msg.join(""));
+            }).catch((err) => reject(err));
+          } else if (!isCompound) {
+            getTokenBalance(asset, proxy).then((balance) => {
+              _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
+              resolve(msg.join(""));
+            }).catch((err) => reject(err));
+          } else {
             resolve(msg.join(""));
-          }).catch((err) => reject(err));
-        } else if (!isCompound) {
-          getTokenBalance(asset, proxy).then((balance) => {
-            _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
-            resolve(msg.join(""));
-          }).catch((err) => reject(err));
-        } else {
-          resolve(msg.join(""));
-        }
+          }
+        }).catch((err) => reject(err));
       }).catch((err) => reject(err));
     }).catch((err) => reject(err));
   });
@@ -1154,9 +1176,9 @@ module.exports.check = () => {
           if (proxies.length > 0) {
             Promise.all([getPercentagePrecision(), getDailyFees(), getEscrows()]).then((result) => {
               const promises = [];
-              for (let i = 0; i < proxies.length; ++i) {
-                promises.push(checkProxy(proxies[i].asset, proxies[i].proxy, proxies[i].all, result[0], result[1], result[2]));
-              }
+                for (let i = 0; i < proxies.length; ++i) {
+                    promises.push(checkProxy(proxies[i].asset, proxies[i].proxy, proxies[i].all, result[0], result[1], result[2]));
+                }
               Promise.all(promises).then((response) => resolve("<html><body>"+ response.join("<br/><br/>") + "</body></html>")).catch((err) => reject(err)); 
             }).catch((err) => reject(err));
           } else {
