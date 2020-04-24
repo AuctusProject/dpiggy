@@ -676,25 +676,25 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                     
                     accruedInterest = accruedInterest.add(userAccruedInterest);            
                     
-                    uint256 userFeeAmout = 0;
+                    uint256 userFeeAmount = 0;
                     //Whether there is no Auc escrowed and the execution had a fee.
                     if ((escrowStart == 0 || escrowStart > execution.time) && execution.feeAmount > 0) {
-                        userFeeAmout = _getFeeAmountForExecution((userData.baseExecutionId+1) == i, execution.feeAmount, execution.totalBalance.sub(execution.totalFeeDeduction), userData);
+                        userFeeAmount = _getFeeAmountForExecution((userData.baseExecutionId+1) == i, execution.feeAmount, execution.totalBalance.sub(execution.totalFeeDeduction), userData);
                         
                         //The maximum amount of fee must be lesser or equal to the user's accrued interest.
-                        if (userFeeAmout > userAccruedInterest) {
-                            userFeeAmout = userAccruedInterest;
+                        if (userFeeAmount > userAccruedInterest) {
+                            userFeeAmount = userAccruedInterest;
                         }
-                        feeAmount = feeAmount.add(userFeeAmout);
+                        feeAmount = feeAmount.add(userFeeAmount);
                     }
                     
                     //Whether the asset is cDai then the net profit continues on Compound contract.
                     if (isCompound) {
-                        remainingBalance = remainingBalance.add(userAccruedInterest.sub(userFeeAmout));
+                        remainingBalance = remainingBalance.add(userAccruedInterest.sub(userFeeAmount));
                     }
                     
                     if (execution.totalBought > 0) {
-                        assetAmount = assetAmount.add(userAccruedInterest.sub(userFeeAmout).mul(execution.totalBought).div(execution.totalRedeemed.sub(execution.feeAmount)));
+                        assetAmount = assetAmount.add(userAccruedInterest.sub(userFeeAmount).mul(execution.totalBought).div(execution.totalRedeemed.sub(execution.feeAmount)));
                     }
                 }
             }
@@ -839,7 +839,6 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         require(AucInterface(_auc).burn(totalBought), "DPiggyAsset::_burnAuc: Error on burn AUC");
         return totalBought;
     }
-    
     
     /**
      * @dev Internal function to assert Compound return.

@@ -7,13 +7,13 @@ provider:
   runtime: nodejs12.x
   stage: dev
   region: us-east-1
-
+  environment: ${ssm:/aws/reference/secretsmanager/dpiggy/lambda/${opt:stage, self:provider.stage}.env.json~true}
+  
 functions:
   compoundRedeem:
     handler: handler.compoundRedeem
     timeout: 600
     reservedConcurrency: 1
-    environment: ${ssm:/aws/reference/secretsmanager/dpiggy/lambda/${opt:stage, self:provider.stage}.env.json~true}
     events:
       - http:
           path: /compound
@@ -22,3 +22,13 @@ functions:
       - schedule:
           rate: rate(30 minutes)
           enabled: true
+  check:
+    handler: handler.check
+    timeout: 1500
+    reservedConcurrency: 1
+    events:
+      - http:
+          path: /compound/check
+          method: post
+          cors: true
+  
