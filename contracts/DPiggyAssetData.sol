@@ -216,11 +216,11 @@ contract DPiggyAssetData is DPiggyBaseProxyData, ReentrancyGuard {
     mapping(uint256 => uint256) public totalBalanceNormalizedDifference;
     
     /**
-     * @dev The difference between the amount of Dai with AUC escrowed and the respective value normalized to the last Compound redeem execution time.
+     * @dev The difference between the amount of Dai with fee exemption and the respective value normalized to the last Compound redeem execution time.
      * _key is the execution Id.
      * _value is the difference of Dai.
      */
-    mapping(uint256 => uint256) public escrowNormalizedDifference;
+    mapping(uint256 => uint256) public feeExemptionNormalizedDifference;
     
     /**
      * @dev The remaining profit redeemed from Compound.

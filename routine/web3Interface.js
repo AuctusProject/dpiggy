@@ -795,7 +795,7 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
       let userData = {};
       let userEscrow = {};
       let totalBalanceDifferenceNormalized = {};
-      let escrowDifferenceNormalized = {};
+      let feeDifferenceNormalized = {};
       let feeExemption = {};
       let remainingValue = {};
       let msg = [("<h1>ASSET " + asset + "</h1>")];
@@ -813,10 +813,11 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           let baseExecutionAmountForFee = BigInt(0);
           if (userEscrow[data[i].user]) {
             totalEscrowed += data[i].amount;
-            _setValueOnMap(escrowDifferenceNormalized, true, executionId+1, normalizedDifference);
+            _setValueOnMap(feeDifferenceNormalized, true, executionId+1, normalizedDifference);
           } else {
             baseExecutionAmountForFee = _getNextExecutionFeeProportion(data[i].amount, timeBetweenExecutions, lastExecution.time, data[i].time, dailyFee, percentagePrecision);
             _setValueOnMap(feeExemption, true, executionId+1, data[i].amount - baseExecutionAmountForFee);
+            _setValueOnMap(feeDifferenceNormalized, true, executionId+1, _getNormalizedDifference(data[i].amount - baseExecutionAmountForFee, data[i].rate, lastExecution.rate));
           }
           _assertValues(msg, data[i].user + " deposit", "baseExecutionAmountForFee", baseExecutionAmountForFee, data[i].baseExecutionAmountForFee);
 
@@ -859,10 +860,13 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
             totalEscrowed += userData[data[i].user].currentAllocated;
 
             if (userData[data[i].user].baseExecutionId == executionId) {
-              _setValueOnMap(feeExemption, false, executionId+1, userData[data[i].user].baseExecutionAccumulatedAmount - userData[data[i].user].baseExecutionAmountForFee);
+              const amountWithFeeExemption = userData[data[i].user].baseExecutionAccumulatedAmount - userData[data[i].user].baseExecutionAmountForFee;
+              const currentFeeNormalized = _getNormalizedDifference(amountWithFeeExemption, userData[data[i].user].baseExecutionAvgRate, lastExecution.rate);
+              const allAmountNormalized = _getNormalizedDifference(userData[data[i].user].baseExecutionAccumulatedAmount, userData[data[i].user].baseExecutionAvgRate, lastExecution.rate)
+              
+              _setValueOnMap(feeExemption, false, executionId+1, amountWithFeeExemption);
+              _setValueOnMap(feeDifferenceNormalized, true, executionId+1, allAmountNormalized - currentFeeNormalized);
               userData[data[i].user].baseExecutionAmountForFee = BigInt(0); 
-
-              _setValueOnMap(escrowDifferenceNormalized, true, executionId+1, _getNormalizedDifference(userData[data[i].user].baseExecutionAccumulatedAmount, userData[data[i].user].baseExecutionAvgRate, lastExecution.rate));
             }
           }
         } else if (data[i].type == "removeEscrow") {
@@ -893,9 +897,9 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           let feeAmount = BigInt(0);
           if (amountWithFee > 0) {
             feeAmount = amountWithFee * _executionFee(data[i].time - lastExecution.time, dailyFee, percentagePrecision) / percentagePrecision;
-            if (totalEscrowed > 0) {
-              let escrowAmountRate = totalEscrowed * lastExecution.rate / (totalEscrowed - _getValueOnMap(escrowDifferenceNormalized, nextId));
-              let maxFeeAmount = totalRedeemed - _calculatetAccruedInterest(totalEscrowed, rate, escrowAmountRate);
+            if (totalFeeDeduction > 0) {
+              let feeAmountRate = totalFeeDeduction * lastExecution.rate / (totalFeeDeduction - _getValueOnMap(feeDifferenceNormalized, nextId));
+              let maxFeeAmount = totalRedeemed - _calculatetAccruedInterest(totalFeeDeduction, rate, feeAmountRate);
               if (feeAmount > maxFeeAmount) {
                 feeAmount = maxFeeAmount;
               }
@@ -972,15 +976,17 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
             _setValueOnMap(totalBalanceDifferenceNormalized, false, executionId+1, normalizedDifference);
             
             if (userEscrow[data[i].user]) {
-              _setValueOnMap(escrowDifferenceNormalized, false, executionId+1, normalizedDifference);
+              _setValueOnMap(feeDifferenceNormalized, false, executionId+1, normalizedDifference);
+            } else {
+              let amountWithFeeExemption = userData[data[i].user].baseExecutionAccumulatedAmount - userData[data[i].user].baseExecutionAmountForFee;
+              _setValueOnMap(feeExemption, false, executionId+1, amountWithFeeExemption);
+              _setValueOnMap(feeDifferenceNormalized, false, executionId+1, _getNormalizedDifference(amountWithFeeExemption, userData[data[i].user].baseExecutionAvgRate, lastExecution.rate));
             }
           }
           
           if (userEscrow[data[i].user]) {
-             totalEscrowed -= userData[data[i].user].currentAllocated;
-          } else if (userData.baseExecutionId == executionId) {
-            _setValueOnMap(feeExemption, false, executionId+1, userData[data[i].user].baseExecutionAccumulatedAmount - userData[data[i].user].baseExecutionAmountForFee);
-          }   
+            totalEscrowed -= userData[data[i].user].currentAllocated;
+          }  
 
           delete userData[data[i].user];
         }

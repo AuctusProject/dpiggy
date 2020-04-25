@@ -98,9 +98,10 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             UserData storage userData = usersData[users[index]];
             usersBalance = usersBalance.add(userData.currentAllocated);
             
-            // Whether the user has AUC escrow the escrow normalized difference must be set.
-            if (userData.currentAllocated > 0 && DPiggyInterface(admin).escrowStart(users[index]) > 0) {
-                _setEscrowNormalizedDifferenceForNextExecution(true, _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, executions[executionId].rate));
+            // The fee exemption normalized difference must be set.
+            if (userData.currentAllocated > 0 && userData.baseExecutionId == executionId) {
+                uint256 normalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee), userData.baseExecutionAvgRate, executions[executionId].rate);
+                _setFeeExemptionNormalizedDifferenceForNextExecution(true, normalizedDifference);
             }
         }
         
@@ -254,7 +255,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         _assertCompoundReturn(_compound.mint(amount));
         
         uint256 baseExecutionAmountForFee = 0;
-        uint256 normalizedDifference = _getNormalizedDifference(amount, rate, lastExecution.rate);
+        uint256 allAmountNormalizedDifference = _getNormalizedDifference(amount, rate, lastExecution.rate);
         uint256 escrowStart = DPiggyInterface(admin).escrowStart(user);
         
         /* If the user has Auc escrowed, all the amount of Dai must set on the respective fee exemption control data. 
@@ -263,10 +264,12 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
          */
         if (escrowStart > 0) {
             _setEscrow(true, amount);
-            _setEscrowNormalizedDifferenceForNextExecution(true, normalizedDifference);
+            _setFeeExemptionNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference);
         } else {
             baseExecutionAmountForFee = _getNextExecutionFeeProportion(amount);
-            _setFeeExemptionForNextExecution(true, amount.sub(baseExecutionAmountForFee));
+            uint256 amountWithFeeExemption = amount.sub(baseExecutionAmountForFee);
+            _setFeeExemptionForNextExecution(true, amountWithFeeExemption);
+            _setFeeExemptionNormalizedDifferenceForNextExecution(true, _getNormalizedDifference(amountWithFeeExemption, rate, lastExecution.rate));
         }
         
         UserData storage userData = usersData[user];
@@ -296,7 +299,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         userData.currentAllocated = userData.currentAllocated.add(amount);
         
         totalBalance = totalBalance.add(amount);
-        _setTotalBalanceNormalizedDifferenceForNextExecution(true, normalizedDifference);
+        _setTotalBalanceNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference);
         
         emit Deposit(user, amount, rate, executionId, baseExecutionAmountForFee);
     }
@@ -318,13 +321,14 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
              */
             if (userData.baseExecutionId == executionId) {
                 
-                uint256 amount = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
-                _setFeeExemptionForNextExecution(false, amount);
-                userData.baseExecutionAmountForFee = 0; 
-                
                 Execution storage lastExecution = executions[executionId];
-                uint256 normalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
-                _setEscrowNormalizedDifferenceForNextExecution(true, normalizedDifference);
+                uint256 amountWithFeeExemption = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
+                uint256 currentNormalizedDifference = _getNormalizedDifference(amountWithFeeExemption, userData.baseExecutionAvgRate, lastExecution.rate);
+                uint256 allAmountNormalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
+                
+                _setFeeExemptionForNextExecution(false, amountWithFeeExemption);
+                _setFeeExemptionNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference.sub(currentNormalizedDifference));
+                userData.baseExecutionAmountForFee = 0; 
             }
             
             return true;
@@ -391,10 +395,10 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 
                 feeAmount = regardedAmountWithFee.mul(DPiggyInterface(admin).executionFee(now.sub(lastExecution.time))).div(DPiggyInterface(admin).percentagePrecision());
                 
-                // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with AUC escrowed.
-                if (feeExemptionAmountForAucEscrowed > 0) {
-                    uint256 escrowAmountRate = feeExemptionAmountForAucEscrowed.mul(lastExecution.rate).div(feeExemptionAmountForAucEscrowed.sub(escrowNormalizedDifference[(executionId+1)]));
-                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(feeExemptionAmountForAucEscrowed, rate, escrowAmountRate));
+                // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with fee exemption.
+                if (totalFeeDeduction > 0) {
+                    uint256 feeExemptionAmountRate = totalFeeDeduction.mul(lastExecution.rate).div(totalFeeDeduction.sub(feeExemptionNormalizedDifference[(executionId+1)]));
+                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(totalFeeDeduction, rate, feeExemptionAmountRate));
                     
                     if (feeAmount > maxFeeAmount) {
                         feeAmount = maxFeeAmount;
@@ -521,25 +525,25 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             
             totalBalance = totalBalance.sub(userData.currentAllocated);
             
-            // Whether the user did a deposit after the last Compound redeem execution the total balance normalized difference must be undone.
+            // Whether the user did a deposit after the last Compound redeem execution the total balance normalized difference and fee related storages must be undone.
             if (userData.baseExecutionId == executionId) {
                 uint256 normalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
                 _setTotalBalanceNormalizedDifferenceForNextExecution(false, normalizedDifference);
                 
-                // Same for escrow normalized difference.
+                // Undo fee related storages.
                 if (escrowStart > 0) {
-                    _setEscrowNormalizedDifferenceForNextExecution(false, normalizedDifference);
+                    _setFeeExemptionNormalizedDifferenceForNextExecution(false, normalizedDifference);
+                } else {
+                    uint256 amountWithFeeExemption = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
+                    _setFeeExemptionForNextExecution(false, amountWithFeeExemption);
+                    _setFeeExemptionNormalizedDifferenceForNextExecution(false, _getNormalizedDifference(amountWithFeeExemption, userData.baseExecutionAvgRate, lastExecution.rate));
                 }
             }
             
-            /* Whether the user has Auc escrowed the Dai must be undone on the stored control data.
-             * Or, whether the user deposited Dai after the last Compound redeem execution the fee deduction calculated also must be undone.
-             */
+            // Whether the user has Auc escrowed the Dai must be undone on the stored control data.
             if (escrowStart > 0) {
                 _setEscrow(false, userData.currentAllocated);
-            } else if (userData.baseExecutionId == executionId) {
-                _setFeeExemptionForNextExecution(false, userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee));
-            }       
+            }    
             
             userData.baseExecutionId = 0;
             userData.baseExecutionAvgRate = 0;
@@ -765,19 +769,19 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     }
     
     /**
-     * @dev Internal function to set the difference between the amount of Dai with AUC escrowed and the respective value normalized to the last Compound redeem execution time.
+     * @dev Internal function to set the difference between the amount of Dai with fee exemption and the respective value normalized to the last Compound redeem execution time.
      * @param commit Whether it is adding the difference for next Compound redeem execution.
-     * @param normalizedDifference The difference between the amount of Dai with AUC escrowed and the respective value normalized to the last Compound redeem execution time.
+     * @param normalizedDifference The difference between the amount of Dai with fee exemption and the respective value normalized to the last Compound redeem execution time.
      */
-    function _setEscrowNormalizedDifferenceForNextExecution(
+    function _setFeeExemptionNormalizedDifferenceForNextExecution(
         bool commit, 
         uint256 normalizedDifference
     ) internal {
         uint256 nextExecution = executionId + 1;
         if (commit) {
-            escrowNormalizedDifference[nextExecution] = escrowNormalizedDifference[nextExecution].add(normalizedDifference);
+            feeExemptionNormalizedDifference[nextExecution] = feeExemptionNormalizedDifference[nextExecution].add(normalizedDifference);
         } else {
-            escrowNormalizedDifference[nextExecution] = escrowNormalizedDifference[nextExecution].sub(normalizedDifference);
+            feeExemptionNormalizedDifference[nextExecution] = feeExemptionNormalizedDifference[nextExecution].sub(normalizedDifference);
         }
     }
     
