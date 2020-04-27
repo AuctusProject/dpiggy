@@ -492,6 +492,22 @@ const getLastExecutionId = (proxy) => {
   });
 };
 
+const getTotalBalance = (proxy) => {   
+  return new Promise((resolve, reject) => {
+    return callEthereum("eth_call", {"to": proxy, "data": "0xad7a672f"}).then((result) => {
+      resolve(parseDataToUint256(result)[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
+const getTotalEscrowed = (proxy) => {   
+  return new Promise((resolve, reject) => {
+    return callEthereum("eth_call", {"to": proxy, "data": "0x5b89c2ac"}).then((result) => {
+      resolve(parseDataToUint256(result)[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
 const getExecutionData = (proxy, id) => {   
   return new Promise((resolve, reject) => {
     return callEthereum("eth_call", {"to": proxy, "data": "0xf76c9229" + numberToData(id)}).then((result) => {
@@ -1097,19 +1113,25 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
               _assertValues(msg, name, exec.toString(), calculatedValue, maps[m]);
             }
 
-            if (asset == "0x0000000000000000000000000000000000000000") {
-              getEthBalance(proxy).then((balance) => {
-                _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
+            Promise.all([getTotalBalance(proxy), getTotalEscrowed(proxy)]).then((val) =>
+            {
+              _assertValues(msg, "totalBalance", "", totalBalance, val[0]);
+              _assertValues(msg, "feeExemptionAmountForAucEscrowed", "", totalEscrowed, val[1]);
+
+              if (asset == "0x0000000000000000000000000000000000000000") {
+                getEthBalance(proxy).then((balance) => {
+                  _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
+                  resolve(msg.join(""));
+                }).catch((err) => reject(err));
+              } else if (!isCompound) {
+                getTokenBalance(asset, proxy).then((balance) => {
+                  _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
+                  resolve(msg.join(""));
+                }).catch((err) => reject(err));
+              } else {
                 resolve(msg.join(""));
-              }).catch((err) => reject(err));
-            } else if (!isCompound) {
-              getTokenBalance(asset, proxy).then((balance) => {
-                _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
-                resolve(msg.join(""));
-              }).catch((err) => reject(err));
-            } else {
-              resolve(msg.join(""));
-            }
+              }
+            }).catch((err) => reject(err));
           }).catch((err) => reject(err));
         }).catch((err) => reject(err));
       }).catch((err) => reject(err));
