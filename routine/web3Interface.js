@@ -889,8 +889,10 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           _assertValues(msg, nextId + " execution", "rate", rate, data[i].rate);
 
           let totalRedeemed = data[i].totalDai - totalBalance;
+          let remainingProfit = BigInt(0);
           if (isCompound) {
-            totalRedeemed -= _getRemainingExecutionProfit(lastExecution, remainingValue, nextId);
+            remainingProfit = _getRemainingExecutionProfit(lastExecution, remainingValue, nextId);
+            totalRedeemed -= remainingProfit;
           }
           
           let amountWithFee = totalBalance - totalFeeDeduction;
@@ -898,8 +900,9 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           if (amountWithFee > 0) {
             feeAmount = amountWithFee * _executionFee(data[i].time - lastExecution.time, dailyFee, percentagePrecision) / percentagePrecision;
             if (totalFeeDeduction > 0) {
-              let feeAmountRate = totalFeeDeduction * lastExecution.rate / (totalFeeDeduction - _getValueOnMap(feeDifferenceNormalized, nextId));
-              let maxFeeAmount = totalRedeemed - _calculatetAccruedInterest(totalFeeDeduction, rate, feeAmountRate);
+              let amountNoFee = totalFeeDeduction + remainingProfit;
+              let feeAmountRate = amountNoFee * lastExecution.rate / (amountNoFee - _getValueOnMap(feeDifferenceNormalized, nextId));
+              let maxFeeAmount = totalRedeemed - _calculatetAccruedInterest(amountNoFee, rate, feeAmountRate);
               if (feeAmount > maxFeeAmount) {
                 feeAmount = maxFeeAmount;
               }
@@ -1183,7 +1186,7 @@ module.exports.check = () => {
             Promise.all([getPercentagePrecision(), getDailyFees(), getEscrows()]).then((result) => {
               const promises = [];
                 for (let i = 0; i < proxies.length; ++i) {
-                    promises.push(checkProxy(proxies[i].asset, proxies[i].proxy, proxies[i].all, result[0], result[1], result[2]));
+                  promises.push(checkProxy(proxies[i].asset, proxies[i].proxy, proxies[i].all, result[0], result[1], result[2]));
                 }
               Promise.all(promises).then((response) => resolve("<html><body>"+ response.join("<br/><br/>") + "</body></html>")).catch((err) => reject(err)); 
             }).catch((err) => reject(err));

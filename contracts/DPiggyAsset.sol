@@ -385,8 +385,10 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             rate = _getRateForExecution(daiAmount, lastExecution);
             
             totalRedeemed = daiAmount.sub(totalBalance);
+            uint256 remainingProfit = 0;
             if (isCompound) {
-                totalRedeemed = totalRedeemed.sub(_getRemainingExecutionProfit(lastExecution));
+                remainingProfit = _getRemainingExecutionProfit(lastExecution);
+                totalRedeemed = totalRedeemed.sub(remainingProfit);
             }
             
             totalFeeDeduction = feeExemptionAmountForUserBaseData[(executionId+1)].add(feeExemptionAmountForAucEscrowed);
@@ -397,8 +399,9 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 
                 // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with fee exemption.
                 if (totalFeeDeduction > 0) {
-                    uint256 feeExemptionAmountRate = totalFeeDeduction.mul(lastExecution.rate).div(totalFeeDeduction.sub(feeExemptionNormalizedDifference[(executionId+1)]));
-                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(totalFeeDeduction, rate, feeExemptionAmountRate));
+                    uint256 amountNoFee = totalFeeDeduction.add(remainingProfit);
+                    uint256 feeExemptionAmountRate = amountNoFee.mul(lastExecution.rate).div(amountNoFee.sub(feeExemptionNormalizedDifference[(executionId+1)]));
+                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(amountNoFee, rate, feeExemptionAmountRate));
                     
                     if (feeAmount > maxFeeAmount) {
                         feeAmount = maxFeeAmount;
