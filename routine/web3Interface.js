@@ -937,19 +937,22 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           let totalFeeDeduction = totalEscrowed + _getValueOnMap(feeExemption, nextId);
           _assertValues(msg, nextId + " execution", "totalFeeDeduction", totalFeeDeduction, data[i].totalFeeDeduction);
 
-          let rate = _getRateForExecution(data[i].totalDai, lastExecution, isCompound, totalBalance, remainingValue, totalBalanceDifferenceNormalized, nextId);
-          _assertValues(msg, nextId + " execution", "rate", rate, data[i].rate);
+          let rate = lastExecution.rate;
+          if (data[i].totalDai > 0) {
+            rate = _getRateForExecution(data[i].totalDai, lastExecution, isCompound, totalBalance, remainingValue, totalBalanceDifferenceNormalized, nextId);
+            _assertValues(msg, nextId + " execution", "rate", rate, data[i].rate);
+          }
 
           let totalRedeemed = data[i].totalDai - totalBalance;
           let remainingProfit = BigInt(0);
-          if (isCompound) {
+          if (data[i].totalDai > 0 && isCompound) {
             remainingProfit = _getRemainingExecutionProfit(lastExecution, remainingValue, nextId);
             totalRedeemed -= remainingProfit;
           }
           
           let amountWithFee = totalBalance - totalFeeDeduction;
           let feeAmount = BigInt(0);
-          if (amountWithFee > 0) {
+          if (data[i].totalDai > 0 && amountWithFee > 0) {
             feeAmount = amountWithFee * _executionFee(data[i].time - lastExecution.time, dailyFee, percentagePrecision) / percentagePrecision;
             if (totalFeeDeduction > 0) {
               let amountNoFee = totalFeeDeduction + remainingProfit;
