@@ -1020,7 +1020,7 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
             _assertValues(msg, users[k] + " userProfitsAndFee", "assetProfit", userData[users[k]].previousAssetAmount, usersProfitResponse[k].userAssetProfit);
             _assertValues(msg, users[k] + " userProfitsAndFee", "feeAmount", userData[users[k]].previousFeeAmount, usersProfitResponse[k].userFeeAmount);
 
-            calcTotalUsersAssetProfit += userData[users[k]].previousAssetAmount;
+            calcTotalUsersAssetProfit += userData[users[k]].previousAssetAmount - userData[users[k]].redeemed;
           }
 
           if (asset == "0x0000000000000000000000000000000000000000") {
