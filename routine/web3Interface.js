@@ -594,6 +594,42 @@ const getCurrentTimeBetweenExecutions = (proxy) => {
   });
 };
 
+const getFeeExemptionForUsedBaseData = (proxy, executionId) => {
+  return new Promise((resolve, reject) => { 
+    return callEthereum("eth_call", {"to": proxy, "data": "0x4cfa24a3" + numberToData(executionId)}).then((result) => {
+      const uints = parseDataToUint256(result);
+      resolve(uints[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
+const getFeeExemptionNormalizedDifference = (proxy, executionId) => {
+  return new Promise((resolve, reject) => { 
+    return callEthereum("eth_call", {"to": proxy, "data": "0xcaee309f" + numberToData(executionId)}).then((result) => {
+      const uints = parseDataToUint256(result);
+      resolve(uints[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
+const getRemainingValueAdjustment = (proxy, executionId) => {
+  return new Promise((resolve, reject) => { 
+    return callEthereum("eth_call", {"to": proxy, "data": "0x01aa5efe" + numberToData(executionId)}).then((result) => {
+      const uints = parseDataToUint256(result);
+      resolve(uints[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
+const getTotalBalanceNormalizedDifference = (proxy, executionId) => {
+  return new Promise((resolve, reject) => { 
+    return callEthereum("eth_call", {"to": proxy, "data": "0x8c521693" + numberToData(executionId)}).then((result) => {
+      const uints = parseDataToUint256(result);
+      resolve(uints[0]);
+    }).catch((err) => reject(err)); 
+  });
+};
+
 const getCurrentUserData = (proxy, user) => {   
   return new Promise((resolve, reject) => { 
     return callEthereum("eth_call", {"to": proxy, "data": "0x0560ab69" + addressToData(user)}).then((result) => {
@@ -967,7 +1003,7 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
           _assertValues(msg, nextId + " execution", "totalUsersAssetProfit", totalAssetProfit, data[i].totalBought);
         } else if (data[i].type == "finish") {
           if (isCompound) {
-            _setValueOnMap(remainingValue, true, userData[data[i].user].previousProfit - userData[data[i].user].previousFeeAmount);
+            _setValueOnMap(remainingValue, true, executionId+1, userData[data[i].user].previousProfit - userData[data[i].user].previousFeeAmount);
           }
           
           _assertValues(msg, data[i].user + " finish", "totalRedeemed", userData[data[i].user].currentAllocated + data[i].yield, data[i].totalRedeemed);
@@ -1023,19 +1059,58 @@ const checkProxy = (asset, proxy, allProxies, percentagePrecision, dailyFees, es
             calcTotalUsersAssetProfit += userData[users[k]].previousAssetAmount - userData[users[k]].redeemed;
           }
 
-          if (asset == "0x0000000000000000000000000000000000000000") {
-            getEthBalance(proxy).then((balance) => {
-              _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
-              resolve(msg.join(""));
-            }).catch((err) => reject(err));
-          } else if (!isCompound) {
-            getTokenBalance(asset, proxy).then((balance) => {
-              _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
-              resolve(msg.join(""));
-            }).catch((err) => reject(err));
-          } else {
-            resolve(msg.join(""));
+          const mapPromises = [];
+          for (let w = 0; w <= executions.length; ++w) {
+            mapPromises.push(getTotalBalanceNormalizedDifference(proxy, w));
+            mapPromises.push(getRemainingValueAdjustment(proxy, w));
+            mapPromises.push(getFeeExemptionNormalizedDifference(proxy, w));
+            mapPromises.push(getFeeExemptionForUsedBaseData(proxy, w));
           }
+          Promise.all(mapPromises).then((maps) => 
+          {
+            for (let m = 0; m < maps.length; m += 4) {
+              let exec = Math.floor(m / 4);
+              let item = m % 4;
+              let name = "";
+              let calculatedValue = BigInt(0);
+              if (item == 0) {
+                name = "totalBalanceNormalizedDifference";
+                if (totalBalanceDifferenceNormalized[exec]) {
+                  calculatedValue = totalBalanceDifferenceNormalized[exec];
+                }
+              } else if (item == 1) {
+                name = "remainingValueAdjustment";
+                if (remainingValue[exec]) {
+                  calculatedValue = remainingValue[exec];
+                }
+              } else if (item == 2) {
+                name = "feeExemptionNormalizedDifference";
+                if (feeDifferenceNormalized[exec]) {
+                  calculatedValue = feeDifferenceNormalized[exec];
+                }
+              } else if (item == 3) {
+                name = "feeExemptionForUsedBaseData";
+                if (feeExemption[exec]) {
+                  calculatedValue = feeExemption[exec];
+                }
+              }
+              _assertValues(msg, name, exec.toString(), calculatedValue, maps[m]);
+            }
+
+            if (asset == "0x0000000000000000000000000000000000000000") {
+              getEthBalance(proxy).then((balance) => {
+                _assertValues(msg, "asset balance", "ether", calcTotalUsersAssetProfit, balance);
+                resolve(msg.join(""));
+              }).catch((err) => reject(err));
+            } else if (!isCompound) {
+              getTokenBalance(asset, proxy).then((balance) => {
+                _assertValues(msg, "asset balance", "token", calcTotalUsersAssetProfit, balance);
+                resolve(msg.join(""));
+              }).catch((err) => reject(err));
+            } else {
+              resolve(msg.join(""));
+            }
+          }).catch((err) => reject(err));
         }).catch((err) => reject(err));
       }).catch((err) => reject(err));
     }).catch((err) => reject(err));
