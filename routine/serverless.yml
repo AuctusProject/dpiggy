@@ -24,7 +24,7 @@ functions:
           enabled: true
   check:
     handler: handler.check
-    timeout: 1500
+    timeout: 900
     reservedConcurrency: 1
     events:
       - http:
