@@ -1149,7 +1149,7 @@ const _assertValues = (msg, type, name, calculated, storage) => {
 
 const _setValueOnMap = (map, commit, executionId, value) => {
   const id = executionId.toString();
-  if (!map[id]) {
+  if (map[id] === null || map[id] === undefined) {
     if (!commit) throw Error("Invalid data to set on map");
     map[id] = value;
   } else if (commit) {
