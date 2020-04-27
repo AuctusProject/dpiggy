@@ -1,8 +1,5 @@
 import React, { Component } from 'react'
 import { withRouter } from 'react-router-dom'
-import { getDecimalSeparator } from '../util/constants'
-
-const decimalSeparator = getDecimalSeparator()
 
 class DecimalInput extends Component {
   constructor(props) {
@@ -39,7 +36,7 @@ class DecimalInput extends Component {
   }
 
   getRegex = () => {
-    return this.props.decimals === 0 ? /^(\d*)$/ : (decimalSeparator === "." ? /^(\d+(?:[.]\d{0,18})?)$/ : /^(\d+(?:[,]\d{0,18})?)$/)
+    return this.props.decimals === 0 ? /^(\d*)$/ : /^(\d+(?:[.]\d{0,18})?)$/
   }
 
   focus = () => {
@@ -69,6 +66,7 @@ class DecimalInput extends Component {
         onBlur={this.onBlur} 
         onKeyPress={this.onKeyPress} 
         onChange={this.onValueChange}
+        tabIndex={this.props.tabIndex}
       />
     )
   }

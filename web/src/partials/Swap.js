@@ -121,7 +121,7 @@ class Swap extends Component {
               <div className="coin-container">
                 <img src="/images/eth_icon.png" className="coin-icon" alt="ETH" />
               </div>
-              <DecimalInput decimals={18} placeholder="Enter ETH amount" disabled={this.props.outputValue > 0} className="input-value" value={this.state.inputAmount} onChange={this.onInputChange} />
+              <DecimalInput tabIndex="-1" decimals={18} placeholder="Enter ETH amount" disabled={this.props.outputValue > 0} className="input-value" value={this.state.inputAmount} onChange={this.onInputChange} />
             </div>
             <div className={"max-label " + (this.props.outputValue > 0 ? "" : "clickable")} onClick={this.buyMaxClick}>(Max:&nbsp;{convertBigNumberToString(this.props.ethBalance)} ETH)</div>
           </div>
@@ -131,7 +131,7 @@ class Swap extends Component {
               <div className="coin-container">
                 <img src={"/images/" + this.props.coin.icon} className="coin-icon" alt="Coin" />
               </div>
-              <DecimalInput decimals={18} disabled={this.props.outputValue > 0} placeholder={"Enter " + this.props.coin.code + " amount"} className="input-value" value={this.state.outputAmount} onChange={this.onOutputChange} />
+              <DecimalInput tabIndex="-1" decimals={18} disabled={this.props.outputValue > 0} placeholder={"Enter " + this.props.coin.code + " amount"} className="input-value" value={this.state.outputAmount} onChange={this.onOutputChange} />
             </div>
             <div className="max-label">(Balance:&nbsp;{convertBigNumberToString(this.props.tokenBalance)} {this.props.coin.code})</div>
           </div>
