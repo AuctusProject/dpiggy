@@ -74,48 +74,12 @@ export function getNetworkName(chainId) {
     return "mainnet"
 }
 
-export const getDecimalSeparator = () => {
-    var decSep = ".";
-    try {
-        var sep = parseFloat(0.5).toLocaleString().substring(1,2);
-        if (sep === '.' || sep === ',') {
-            decSep = sep;
-        }
-    } catch(e){}
-    return decSep;
-}
-
-export const getThousandSeparator = () => {
-    var decSep = getDecimalSeparator()
-    if (decSep === ',') {
-        return '.'
-    }
-    return ','
-}
-
 export const formattedFloatValue = (number, digits = 18) => {
     var roundFactor = 1
     for (var i = 0; i < digits; ++i) {
         roundFactor = roundFactor * 10
     }
     return (Math.round(number * roundFactor) / roundFactor)
-}
-
-export const formattedValue = (number, prefix = "$", digits = 0, maximumDigits = 18, hideThousandSeparators = false) => {
-    var formattedValue = formattedFloatValue(number, maximumDigits)
-    var negativePrefix = ""
-    if (formattedValue < 0) {
-        negativePrefix = "-"
-        formattedValue = Math.abs(formattedValue)
-    }
-    var result = negativePrefix + prefix + formattedValue.toLocaleString(undefined, {minimumFractionDigits: digits, maximumFractionDigits: maximumDigits})
-    if (hideThousandSeparators) { 
-        var thousandSep = getThousandSeparator()
-        while (result.includes(thousandSep)) {
-            result = result.replace(thousandSep, "")
-        }
-    }
-    return result
 }
 
 export const ellipsisCenterOfUsername = (username) => {
