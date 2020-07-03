@@ -20,7 +20,7 @@ const callEthereum = (method, methodData, secondParam = "latest") => {
       .then((response) =>
       {
         if (response && response.data) {
-          if (response.error) {
+          if (response.data.error) {
             reject(method + " " + methodData + " " + JSON.stringify(response.data.error));
           } else {
             resolve(response.data.result);
@@ -150,7 +150,7 @@ const getCompoundRedeemData = (assets) => {
 
 const getEstimatedGas = (data) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_estimateGas", {"from": process.env.ADDRESS, "to": process.env.DPIGGY, "data": data}, null).then((result) => {
+    callEthereum("eth_estimateGas", {"from": process.env.ADDRESS, "to": process.env.DPIGGY, "data": data}, null).then((result) => {
       if (result) {
         resolve(parseInt(Web3Utils.hexToNumber(result) * process.env.GAS_AJUSTMENT));
       } else {
@@ -219,35 +219,35 @@ const getAssets = () => {
 
 const getAssetsProxy = (assets) => {
   return new Promise((resolve, reject) => { 
-      const assetPromises = [];
-      for (let assetIndex = 0; assetIndex < assets.length; ++assetIndex) {
-        assetPromises.push(getAssetProxy(assets[assetIndex]));
-      }
-      Promise.all(assetPromises.map(p => p.catch(e => e))).then((proxies) =>
-      {
-        const proxiesData = [];
-        const allProxiesPromise = [];
-        let proxiesError = "";
-        for (let i = 0; i < assets.length; ++i) {
-          if (proxies[i] && !(proxies[i] instanceof Error)) {
-            proxiesData.push({asset: assets[i], proxy: proxies[i]});
-            allProxiesPromise.push(getAllProxies(proxies[i]));
-          } else {
-            proxiesError += "<br/>Error on search asset proxy " + assets[i] + ": " + ((proxies[i] instanceof Error) ? proxies[i].stack : proxies[i]);      
-          }
+    const assetPromises = [];
+    for (let assetIndex = 0; assetIndex < assets.length; ++assetIndex) {
+      assetPromises.push(getAssetProxy(assets[assetIndex]));
+    }
+    Promise.all(assetPromises.map(p => p.catch(e => e))).then((proxies) =>
+    {
+      const proxiesData = [];
+      const allProxiesPromise = [];
+      let proxiesError = "";
+      for (let i = 0; i < assets.length; ++i) {
+        if (proxies[i] && !(proxies[i] instanceof Error)) {
+          proxiesData.push({asset: assets[i], proxy: proxies[i]});
+          allProxiesPromise.push(getAllProxies(proxies[i]));
+        } else {
+          proxiesError += "<br/>Error on search asset proxy " + assets[i] + ": " + ((proxies[i] instanceof Error) ? proxies[i].stack : proxies[i]);      
         }
-        Promise.all(allProxiesPromise).then((proxies) => {
-          for (let j = 0; j < allProxiesPromise.length; ++j) {
-            proxiesData[j].all = proxies[j];
-          }
-          if (!!proxiesError) {
-            email.sendEmail(proxiesError).finally(() => resolve(proxiesData));
-          } else {
-            resolve(proxiesData);
-          }
-        }).catch((err) => reject(err));
-      });
+      }
+      Promise.all(allProxiesPromise).then((proxies) => {
+        for (let j = 0; j < allProxiesPromise.length; ++j) {
+          proxiesData[j].all = proxies[j];
+        }
+        if (!!proxiesError) {
+          email.sendEmail(proxiesError).finally(() => resolve(proxiesData));
+        } else {
+          resolve(proxiesData);
+        }
+      }).catch((err) => reject(err));
     });
+  });
 };
 
 const getAssetsToProcess = (assets) => {
@@ -334,7 +334,7 @@ const getNumberOfAssets = () => {
 
 const getAsset = (index) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0xcf35bdd0" + numberToData(index)}).then((result) => {
+    callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0xcf35bdd0" + numberToData(index)}).then((result) => {
       if (result && result.length == 66) {
         resolve("0x" + result.substring(26));
       } else {
@@ -346,7 +346,7 @@ const getAsset = (index) => {
 
 const getAssetProxy = (asset) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x35558e9b" + addressToData(asset)}).then((result) => {
+    callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x35558e9b" + addressToData(asset)}).then((result) => {
       if (result && result.length > 66) {
         resolve("0x" + result.substring(26, 66));
       } else {
@@ -377,7 +377,7 @@ const getAllProxies = (proxy) => {
 
 const getLastProxy = (proxy) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": [proxy], "fromBlock": fromBlock, "topics": ["0xc00a27945a4c0dbeb22e4acdf6e3db57385e6519565e884cb505d1dc95d196b6"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": [proxy], "fromBlock": fromBlock, "topics": ["0xc00a27945a4c0dbeb22e4acdf6e3db57385e6519565e884cb505d1dc95d196b6"]}, null).then((result) => {
       if (result && result.length > 0) {
         resolve("0x" + result[0].data.substring(26));
       } else {
@@ -401,7 +401,7 @@ const getUserProxyData = (proxies) => {
 
 const getUserDepositData = (proxies) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x7162984403f6c73c8639375d45a9187dfd04602231bd8e587c415718b5f7e5f9"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x7162984403f6c73c8639375d45a9187dfd04602231bd8e587c415718b5f7e5f9"]}, null).then((result) => {
       const response = [];
       const promises = [];
       let indexes = {};
@@ -437,7 +437,7 @@ const getUserDepositData = (proxies) => {
 
 const getUserRedeemData = (proxies) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x222838db2794d11532d940e8dec38ae307ed0b63cd97c233322e221f998767a6"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x222838db2794d11532d940e8dec38ae307ed0b63cd97c233322e221f998767a6"]}, null).then((result) => {
       const response = [];
       for (let i = 0; i < result.length; ++i) {
         const uints = parseDataToUint256(result[i].data);
@@ -457,7 +457,7 @@ const getUserRedeemData = (proxies) => {
 
 const getUserFinishData = (proxies) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0xe2d3355730bcec47e085f9e5b21d716ee4562116e0ed10e577695c7468910659"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0xe2d3355730bcec47e085f9e5b21d716ee4562116e0ed10e577695c7468910659"]}, null).then((result) => {
       const response = [];
       for (let i = 0; i < result.length; ++i) {
         const uints = parseDataToUint256(result[i].data);
@@ -480,13 +480,13 @@ const getUserFinishData = (proxies) => {
 
 const getBlockTimestamp = (block) => {
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_getBlockByNumber", "0x" + block.toString(16), false).then((result) => resolve(BigInt(result.timestamp))).catch((err) => reject(err)); 
+    callEthereum("eth_getBlockByNumber", "0x" + block.toString(16), false).then((result) => resolve(BigInt(result.timestamp))).catch((err) => reject(err)); 
   });
 };
 
 const getLastExecutionId = (proxy) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_call", {"to": proxy, "data": "0x76ce2dad"}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x76ce2dad"}).then((result) => {
       resolve(parseInt(result, 16));
     }).catch((err) => reject(err)); 
   });
@@ -494,7 +494,7 @@ const getLastExecutionId = (proxy) => {
 
 const getTotalBalance = (proxy) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_call", {"to": proxy, "data": "0xad7a672f"}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0xad7a672f"}).then((result) => {
       resolve(parseDataToUint256(result)[0]);
     }).catch((err) => reject(err)); 
   });
@@ -502,7 +502,7 @@ const getTotalBalance = (proxy) => {
 
 const getTotalEscrowed = (proxy) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_call", {"to": proxy, "data": "0x5b89c2ac"}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x5b89c2ac"}).then((result) => {
       resolve(parseDataToUint256(result)[0]);
     }).catch((err) => reject(err)); 
   });
@@ -510,7 +510,7 @@ const getTotalEscrowed = (proxy) => {
 
 const getExecutionData = (proxy, id) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_call", {"to": proxy, "data": "0xf76c9229" + numberToData(id)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0xf76c9229" + numberToData(id)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve({
         time: uints[0],
@@ -528,7 +528,7 @@ const getExecutionData = (proxy, id) => {
 
 const getExecutions = (proxy, proxies) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x5b60a66f83b2a5d38f756162682c5b2cb62350d695d99f01d667b27d0050f66d"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x5b60a66f83b2a5d38f756162682c5b2cb62350d695d99f01d667b27d0050f66d"]}, null).then((result) => {
       const response = [];
       const promises = [];
       for (let i = 0; i < result.length; ++i) {
@@ -565,7 +565,7 @@ const getExecutions = (proxy, proxies) => {
 
 const getEscrows = () => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0x09899d3bc411b2ff72f6d9cba531694b14492852d1611cddc40e67ba1dfc74a8"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0x09899d3bc411b2ff72f6d9cba531694b14492852d1611cddc40e67ba1dfc74a8"]}, null).then((result) => {
       const response = [];
       for (let i = 0; i < result.length; ++i) {
         response.push({
@@ -594,7 +594,7 @@ const getEscrows = () => {
 
 const getCurrentDailyFee = () => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x9306fd3d"}).then((result) => {
+    callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x9306fd3d"}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -603,7 +603,7 @@ const getCurrentDailyFee = () => {
 
 const getCurrentTimeBetweenExecutions = (proxy) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x5c7c6a92"}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x5c7c6a92"}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -612,7 +612,7 @@ const getCurrentTimeBetweenExecutions = (proxy) => {
 
 const getFeeExemptionForUsedBaseData = (proxy, executionId) => {
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x4cfa24a3" + numberToData(executionId)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x4cfa24a3" + numberToData(executionId)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -621,7 +621,7 @@ const getFeeExemptionForUsedBaseData = (proxy, executionId) => {
 
 const getFeeExemptionNormalizedDifference = (proxy, executionId) => {
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0xcaee309f" + numberToData(executionId)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0xcaee309f" + numberToData(executionId)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -630,7 +630,7 @@ const getFeeExemptionNormalizedDifference = (proxy, executionId) => {
 
 const getRemainingValueAdjustment = (proxy, executionId) => {
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x01aa5efe" + numberToData(executionId)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x01aa5efe" + numberToData(executionId)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -639,7 +639,7 @@ const getRemainingValueAdjustment = (proxy, executionId) => {
 
 const getTotalBalanceNormalizedDifference = (proxy, executionId) => {
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x8c521693" + numberToData(executionId)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x8c521693" + numberToData(executionId)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -648,7 +648,7 @@ const getTotalBalanceNormalizedDifference = (proxy, executionId) => {
 
 const getCurrentUserData = (proxy, user) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x0560ab69" + addressToData(user)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x0560ab69" + addressToData(user)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve({
         baseExecutionId: Number(uints[0]),
@@ -669,7 +669,7 @@ const getCurrentUserData = (proxy, user) => {
 
 const getUserProfitsAndFeeAmount = (proxy, user) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": proxy, "data": "0x7bf9ebe9" + addressToData(user)}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x7bf9ebe9" + addressToData(user)}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve({
         userProfit: uints[0],
@@ -682,7 +682,7 @@ const getUserProfitsAndFeeAmount = (proxy, user) => {
 
 const getPercentagePrecision = () => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x18952383"}).then((result) => {
+    callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x18952383"}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0]);
     }).catch((err) => reject(err)); 
@@ -691,7 +691,7 @@ const getPercentagePrecision = () => {
 
 const getDailyFees = () => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0xbea8678570aa50766eede67aba74adbe8d97b991e55e0ab5ff747f5352bc6ac5"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0xbea8678570aa50766eede67aba74adbe8d97b991e55e0ab5ff747f5352bc6ac5"]}, null).then((result) => {
       const response = [];
       for (let i = 0; i < result.length; ++i) {
         const uints = parseDataToUint256(result[i].data);
@@ -731,7 +731,7 @@ const getDailyFees = () => {
 
 const getTimesBetweenExecutions = (proxy, proxies) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x02cdaecda588a94496925494b34a2e5229092cc4a25a39cbdd8f7951bae8deeb"]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": proxies, "fromBlock": fromBlock, "topics": ["0x02cdaecda588a94496925494b34a2e5229092cc4a25a39cbdd8f7951bae8deeb"]}, null).then((result) => {
       const response = [];
       for (let i = 0; i < result.length; ++i) {
         const uints = parseDataToUint256(result[i].data);
@@ -771,7 +771,7 @@ const getTimesBetweenExecutions = (proxy, proxies) => {
 
 const getCreationAssetTime = (asset) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0xbee54d4e64c43aa227bfbfa0f46c56a830f0fd66482f623b827711b319edc8a0","0x"+addressToData(asset)]}, null).then((result) => {
+    callEthereum("eth_getLogs", {"address": process.env.DPIGGY, "fromBlock": fromBlock, "topics": ["0xbee54d4e64c43aa227bfbfa0f46c56a830f0fd66482f623b827711b319edc8a0","0x"+addressToData(asset)]}, null).then((result) => {
       getBlockTimestamp(parseInt(result[0].blockNumber, 16)).then((time) => resolve(time)).catch((err) => reject(err));
     }).catch((err) => reject(err));
   });
@@ -779,7 +779,7 @@ const getCreationAssetTime = (asset) => {
 
 const isCompoundProxy = (proxy) => {   
   return new Promise((resolve, reject) => {
-    return callEthereum("eth_call", {"to": proxy, "data": "0x1dc7a314"}).then((result) => {
+    callEthereum("eth_call", {"to": proxy, "data": "0x1dc7a314"}).then((result) => {
       const uints = parseDataToUint256(result);
       resolve(uints[0] === BigInt(1));
     }).catch((err) => reject(err)); 
@@ -799,7 +799,7 @@ const parseDataToUint256 = (data) => {
 
 const getMinimumTimeForNextExecution = (asset) => {   
   return new Promise((resolve, reject) => { 
-    return callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x5a5cd6eb" + addressToData(asset)}).then((result) => {
+    callEthereum("eth_call", {"to": process.env.DPIGGY, "data": "0x5a5cd6eb" + addressToData(asset)}).then((result) => {
       if (result) {
         resolve(Web3Utils.hexToNumber(result));
       } else {
