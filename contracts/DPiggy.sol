@@ -254,6 +254,44 @@ contract DPiggy is DPiggyData, DPiggyInterface, AucReceiverInterface {
     }
     
     /**
+     * @dev Function to set the new proxy for the dPiggy asset and migrates the previous data.
+     * Only can be called by the admin.
+     * @param tokenAddress The ERC20 token address on the chain or '0x0' for Ethereum. 
+     * @param _assetImplementation New implementation contract address.
+     * @param users The users to copy their stored data.
+     */
+    function migrateAssetProxy(address tokenAddress, address _assetImplementation, address[] calldata users) onlyAdmin external {
+        AssetData storage assetData = assetsData[tokenAddress];
+        require(assetData.time > 0, "DPiggy::migrateAssetProxy: Invalid tokenAddress");
+        
+        // Encoded data to initialize the new proxy with the previous asset data.
+        bytes memory initData = abi.encodeWithSignature("initMigratingData(address,address[])", assetData.proxy, users);    
+        address newProxy = address(new DPiggyAssetProxy(address(this), _assetImplementation, initData));
+        
+        // Encoded data to resign the previous implementation of the asset.
+        bytes memory resignData = abi.encodeWithSignature("resignAssetForMigration(address[])", users);
+        // Resign the implementation and get the cDai and asset amount.
+        (bool success, bytes memory returnData) = assetData.proxy.call(resignData);
+        assert(success);
+        uint256[] memory amounts = _getUint256(returnData);
+        
+        // Transfer the amounts for the new proxy contract.
+        if (amounts[0] > 0) {
+            assert(EIP20Interface(compound).transfer(newProxy, amounts[0]));
+        }
+        if (amounts[1] > 0) {
+            if (tokenAddress != address(0)) {
+                assert(EIP20Interface(tokenAddress).transfer(newProxy, amounts[1]));
+            } else {
+                Address.toPayable(newProxy).transfer(amounts[1]);
+            }
+        }
+        
+        // Update the asset proxy address.
+        assetData.proxy = newProxy;
+    }
+    
+    /**
      * @dev Function to create a new dPiggy asset.
      * Only can be called by the admin.
      * The asset cannot already exist on dPiggy.
@@ -548,5 +586,20 @@ contract DPiggy is DPiggyData, DPiggyInterface, AucReceiverInterface {
         } else {
             return 0;
         }
+    }
+    
+    function _getUint256(bytes memory data) internal pure returns(uint256[] memory) {
+        uint256 size = data.length / 32;
+        uint256[] memory returnUint = new uint256[](size);
+        uint256 offset = 0;
+        for (uint256 i = 0; i < size; ++i) {
+            bytes32 number;
+            for (uint256 j = 0; j < 32; j++) {
+                number |= bytes32(data[offset + j] & 0xFF) >> (j * 8);
+            }
+            returnUint[i] = uint256(number);
+            offset += 32;
+        }
+        return returnUint;
     }
 }

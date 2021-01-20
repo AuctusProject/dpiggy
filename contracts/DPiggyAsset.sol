@@ -62,6 +62,60 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     }
     
     /**
+     * @dev Function to initialize the contract migrating the data from another contract.
+     * It should be called through the `data` argument when creating the proxy.
+     * It must be called only once. The `assert` is to guarantee that behavior.
+     * @param previousContract The contract to copy the data. 
+     * @param users The users to copy their stored data.
+     */
+    function initMigratingData(address previousContract, address[] calldata users) external {
+        
+        assert(
+            minimumTimeBetweenExecutions == 0 && 
+            executionId == 0 && 
+            totalBalance == 0 && 
+            tokenAddress == address(0)
+        );
+        
+        tokenAddress = _getContractAddress(previousContract, abi.encodeWithSignature("tokenAddress()"));
+        isCompound = _getContractBool(previousContract, abi.encodeWithSignature("isCompound()"));
+        minimumTimeBetweenExecutions = _getContractUint256(previousContract, abi.encodeWithSignature("minimumTimeBetweenExecutions()"));
+        totalBalance = _getContractUint256(previousContract, abi.encodeWithSignature("totalBalance()"));
+        feeExemptionAmountForAucEscrowed = _getContractUint256(previousContract, abi.encodeWithSignature("feeExemptionAmountForAucEscrowed()"));
+        executionId = _getContractUint256(previousContract, abi.encodeWithSignature("executionId()"));
+        
+        for (uint256 id = 0; id <= executionId; ++id) {
+            uint256 nextId = id + 1;
+            totalBalanceNormalizedDifference[nextId] = _getContractUint256(previousContract, abi.encodeWithSignature("totalBalanceNormalizedDifference(uint256)", nextId));
+            feeExemptionAmountForUserBaseData[nextId] = _getContractUint256(previousContract, abi.encodeWithSignature("feeExemptionAmountForUserBaseData(uint256)", nextId));
+            executions[id] = _getContractExecution(previousContract, abi.encodeWithSignature("executions(uint256)", id));
+        }
+        
+        uint256 usersBalance = 0;
+        for (uint256 index = 0; index < users.length; ++index) {
+            usersData[users[index]] = _getContractUserData(previousContract, abi.encodeWithSignature("usersData(address)", users[index]));
+            
+            UserData storage userData = usersData[users[index]];
+            usersBalance = usersBalance.add(userData.currentAllocated);
+            
+            // The fee exemption normalized difference must be set.
+            if (userData.currentAllocated > 0 && userData.baseExecutionId == executionId) {
+                uint256 normalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee), userData.baseExecutionAvgRate, executions[executionId].rate);
+                _setFeeExemptionNormalizedDifferenceForNextExecution(true, normalizedDifference);
+            }
+        }
+        
+        require(usersBalance == totalBalance, "DPiggyAsset::initMigratingData: Invalid users");
+
+        /* Initialize the stored data that controls the reentrancy guard.
+         * Due to the proxy, it must be set on a separate initialize method instead of the constructor.
+         */
+        _notEntered = true;
+        
+        emit SetMigration(previousContract);
+    }
+    
+    /**
      * @dev Function to receive ether when it was bought on the Uniswap exchange.
      */
     receive() external payable {
@@ -187,20 +241,6 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     function deposit(address user, uint256 amount) nonReentrant onlyAdmin external override(DPiggyAssetInterface) {
         uint256 _percentagePrecision = DPiggyInterface(admin).percentagePrecision();
         
-        uint256 baseExecutionAmountForFee = 0;
-        uint256 escrowStart = DPiggyInterface(admin).escrowStart(user);
-        
-        /* If the user has Auc escrowed, all the amount of Dai must set on the respective fee exemption control data. 
-         * Otherwise, the fee exemption is the proportional amount of deposited Dai between the last execution and the current execution.  
-         * The fee will be charged only during the days that Dai was invested, not all period.
-         */
-        if (escrowStart > 0) {
-            _setEscrow(true, amount);
-        } else {
-            baseExecutionAmountForFee = _getNextExecutionFeeProportion(amount);
-            _setFeeExemptionForNextExecution(true, amount.sub(baseExecutionAmountForFee));
-        }
-        
         CompoundInterface _compound = CompoundInterface(DPiggyInterface(admin).compound());
         require(EIP20Interface(DPiggyInterface(admin).dai()).approve(address(_compound), amount), "DPiggyAsset::deposit: Error on approve Compound");
         
@@ -212,7 +252,25 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             rate = lastExecution.rate;
         }
         
-        assert(_compound.mint(amount) == 0);
+        _assertCompoundReturn(_compound.mint(amount));
+        
+        uint256 baseExecutionAmountForFee = 0;
+        uint256 allAmountNormalizedDifference = _getNormalizedDifference(amount, rate, lastExecution.rate);
+        uint256 escrowStart = DPiggyInterface(admin).escrowStart(user);
+        
+        /* If the user has Auc escrowed, all the amount of Dai must set on the respective fee exemption control data. 
+         * Otherwise, the fee exemption is the proportional amount of deposited Dai between the last execution and the current execution.  
+         * The fee will be charged only during the days that Dai was invested, not all period.
+         */
+        if (escrowStart > 0) {
+            _setEscrow(true, amount);
+            _setFeeExemptionNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference);
+        } else {
+            baseExecutionAmountForFee = _getNextExecutionFeeProportion(amount);
+            uint256 amountWithFeeExemption = amount.sub(baseExecutionAmountForFee);
+            _setFeeExemptionForNextExecution(true, amountWithFeeExemption);
+            _setFeeExemptionNormalizedDifferenceForNextExecution(true, _getNormalizedDifference(amountWithFeeExemption, rate, lastExecution.rate));
+        }
         
         UserData storage userData = usersData[user];
         uint256 currentWeight = amount.mul(_percentagePrecision).div(rate);
@@ -241,7 +299,7 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         userData.currentAllocated = userData.currentAllocated.add(amount);
         
         totalBalance = totalBalance.add(amount);
-        _setTotalBalanceNormalizedDifferenceForNextExecution(true, amount, rate, lastExecution.rate);
+        _setTotalBalanceNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference);
         
         emit Deposit(user, amount, rate, executionId, baseExecutionAmountForFee);
     }
@@ -257,12 +315,19 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         if (userData.currentAllocated > 0) {
             _setEscrow(true, userData.currentAllocated);
             
-            /* Whether the user deposited Dai after the last Compound redeem execution. The fee deduction calculated must be undone 
-             * because with the Auc escrowed all user amount of Dai has fee exemption and it was set in other stored data.
+            /* Whether the user deposited Dai after the last Compound redeem execution:
+             * The fee deduction calculated must be undone because with the Auc escrowed all user amount of Dai has fee exemption and it was set in other stored data.
+             * Also must be set the difference between the amount of Dai and the respective value normalized to the last Compound redeem execution time.
              */
             if (userData.baseExecutionId == executionId) {
-                uint256 amount = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
-                _setFeeExemptionForNextExecution(false, amount);
+                
+                Execution storage lastExecution = executions[executionId];
+                uint256 amountWithFeeExemption = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
+                uint256 currentNormalizedDifference = _getNormalizedDifference(amountWithFeeExemption, userData.baseExecutionAvgRate, lastExecution.rate);
+                uint256 allAmountNormalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
+                
+                _setFeeExemptionForNextExecution(false, amountWithFeeExemption);
+                _setFeeExemptionNormalizedDifferenceForNextExecution(true, allAmountNormalizedDifference.sub(currentNormalizedDifference));
                 userData.baseExecutionAmountForFee = 0; 
             }
             
@@ -311,34 +376,49 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         uint256 totalRedeemed = 0;
         uint256 totalFeeDeduction = 0;
         uint256 daiAmount = 0;
+        uint256 rate;
         
         //Whether there is no Dai deposited (totalBalance is zero) the execution still runs to register the basic data on the chain.
         if (totalBalance > 0) {
+            
+            daiAmount = _compound.balanceOfUnderlying(address(this));
+            rate = _getRateForExecution(daiAmount, lastExecution);
+            
+            totalRedeemed = daiAmount.sub(totalBalance);
+            uint256 remainingProfit = 0;
+            if (isCompound) {
+                remainingProfit = _getRemainingExecutionProfit(lastExecution);
+                totalRedeemed = totalRedeemed.sub(remainingProfit);
+            }
+            
             totalFeeDeduction = feeExemptionAmountForUserBaseData[(executionId+1)].add(feeExemptionAmountForAucEscrowed);
             uint256 regardedAmountWithFee = totalBalance.sub(totalFeeDeduction);
             if (regardedAmountWithFee > 0) {
+                
                 feeAmount = regardedAmountWithFee.mul(DPiggyInterface(admin).executionFee(now.sub(lastExecution.time))).div(DPiggyInterface(admin).percentagePrecision());
+                
+                // The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed and cannot ignore the interest generated for Dai with fee exemption.
+                if (totalFeeDeduction > 0) {
+                    uint256 amountNoFee = totalFeeDeduction.add(remainingProfit);
+                    uint256 feeExemptionAmountRate = amountNoFee.mul(lastExecution.rate).div(amountNoFee.sub(feeExemptionNormalizedDifference[(executionId+1)]));
+                    uint256 maxFeeAmount = totalRedeemed.sub(_calculatetAccruedInterest(amountNoFee, rate, feeExemptionAmountRate));
+                    
+                    if (feeAmount > maxFeeAmount) {
+                        feeAmount = maxFeeAmount;
+                    }
+                } else if (feeAmount > totalRedeemed) {
+                    feeAmount = totalRedeemed;
+                }
             }
-            
-            daiAmount = _compound.balanceOfUnderlying(address(this));
-            totalRedeemed = daiAmount.sub(totalBalance);
-            
-            //The maximum amount of fee must be lesser or equal to the total of Dai available after the redeemed.
-            if (feeAmount > totalRedeemed) {
-                feeAmount = totalRedeemed;
-            } 
             
             //For Compound asset (cDai), the execution only redeems the fee amount because the cDai keeps invested on Compound contract.
             if (isCompound) {
                 totalRedeemed = feeAmount;
             }
-        }
-        
-        uint256 rate;    
-        if (totalRedeemed > 0) {
-            assert(_compound.redeemUnderlying(totalRedeemed) == 0);
             
-            rate = _getRateForExecution(daiAmount, lastExecution);
+            if (totalRedeemed > 0) {
+                _assertCompoundReturn(_compound.redeemUnderlying(totalRedeemed));
+            }
         } else {
             rate = lastExecution.rate;
         }
@@ -433,8 +513,8 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
                 (uint256 executionsProfit,,uint256 feeAmount) = _getUserProfitsAndFeeAmount(escrowStart, userData);
                 userAccruedInterest = executionsProfit.sub(feeAmount);
                 
-                //Set the user accrued interest to be subtracted from total balance on next Compound redeem execution. 
-                totalBalanceNormalizedDifference[(executionId+1)] = totalBalanceNormalizedDifference[(executionId+1)].add(userAccruedInterest);
+                //Set the user accrued interest to be subtracted from the remaining balance on next Compound redeem execution. 
+                remainingValueRedeemed[(executionId+1)] = remainingValueRedeemed[(executionId+1)].add(userAccruedInterest);
                 
                 userAccruedInterest = userAccruedInterest.add(_getAccruedInterestForExecution(executionId, currentRate, userAccruedInterest, userData));
             } else {
@@ -442,25 +522,31 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             }
             uint256 totalRedeemed = userData.currentAllocated.add(userAccruedInterest);
             
-            assert(_compound.redeemUnderlying(totalRedeemed) == 0);
+            _assertCompoundReturn(_compound.redeemUnderlying(totalRedeemed));
             
             require(EIP20Interface(DPiggyInterface(admin).dai()).transfer(user, totalRedeemed), "DPiggyAsset::finish: Error on transfer Dai");
             
             totalBalance = totalBalance.sub(userData.currentAllocated);
             
-            // Whether the user did a deposit after the last Compound redeem execution the total balance normalized difference must be undone.
+            // Whether the user did a deposit after the last Compound redeem execution the total balance normalized difference and fee related storages must be undone.
             if (userData.baseExecutionId == executionId) {
-                _setTotalBalanceNormalizedDifferenceForNextExecution(false, userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
+                uint256 normalizedDifference = _getNormalizedDifference(userData.baseExecutionAccumulatedAmount, userData.baseExecutionAvgRate, lastExecution.rate);
+                _setTotalBalanceNormalizedDifferenceForNextExecution(false, normalizedDifference);
+                
+                // Undo fee related storages.
+                if (escrowStart > 0) {
+                    _setFeeExemptionNormalizedDifferenceForNextExecution(false, normalizedDifference);
+                } else {
+                    uint256 amountWithFeeExemption = userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee);
+                    _setFeeExemptionForNextExecution(false, amountWithFeeExemption);
+                    _setFeeExemptionNormalizedDifferenceForNextExecution(false, _getNormalizedDifference(amountWithFeeExemption, userData.baseExecutionAvgRate, lastExecution.rate));
+                }
             }
             
-            /* Whether the user has Auc escrowed the Dai must be undone on the stored control data.
-             * Or, whether the user deposited Dai after the last Compound redeem execution the fee deduction calculated also must be undone.
-             */
+            // Whether the user has Auc escrowed the Dai must be undone on the stored control data.
             if (escrowStart > 0) {
                 _setEscrow(false, userData.currentAllocated);
-            } else if (userData.baseExecutionId == executionId) {
-                _setFeeExemptionForNextExecution(false, userData.baseExecutionAccumulatedAmount.sub(userData.baseExecutionAmountForFee));
-            }       
+            }    
             
             userData.baseExecutionId = 0;
             userData.baseExecutionAvgRate = 0;
@@ -507,10 +593,19 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     function _getRateForExecution(uint256 amount, Execution storage lastExecution) internal view returns(uint256) {
         uint256 remainingBalance = 0;
         //Whether the asset is cDai then the net profit continues on Compound contract.
-        if (isCompound && lastExecution.totalRedeemed > 0) {
-            remainingBalance = lastExecution.totalDai.sub(lastExecution.totalBalance).sub(lastExecution.totalRedeemed);
+        if (isCompound && lastExecution.totalDai > 0) {
+            remainingBalance = _getRemainingExecutionProfit(lastExecution);
         }
         return amount.mul(lastExecution.rate).div(totalBalance.add(remainingBalance).sub(totalBalanceNormalizedDifference[(executionId+1)]));
+    }
+    
+    /**
+     * @dev Internal function to get the remaining profit on the Compound contract from the last redeemed execution.
+     * @param lastExecution The last Compound redeem execution data.
+     * @return The remaining profit.
+     */
+    function _getRemainingExecutionProfit(Execution storage lastExecution) internal view returns(uint256) {
+        return lastExecution.totalDai.sub(lastExecution.totalBalance).sub(lastExecution.totalRedeemed).sub(remainingValueRedeemed[(executionId+1)]);
     }
     
     /**
@@ -558,7 +653,11 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         uint256 currentRate, 
         uint256 previousRate
     ) internal pure returns(uint256) {
-        return amount.mul(currentRate).div(previousRate).sub(amount);
+        if (currentRate > previousRate) {
+            return amount.mul(currentRate).div(previousRate).sub(amount);
+        } else {
+            return 0;
+        }
     }
     
     /**
@@ -578,31 +677,31 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             }
             for (uint256 i = (userData.baseExecutionId+1); i <= executionId; i++) {
                 Execution storage execution = executions[i];
-                if (execution.totalRedeemed > 0) {   
+                if (execution.totalDai > 0) {   
                     
                     uint256 userAccruedInterest = _getAccruedInterestForExecution(i - 1, execution.rate, remainingBalance, userData);
                     
                     accruedInterest = accruedInterest.add(userAccruedInterest);            
                     
-                    uint256 userFeeAmout = 0;
+                    uint256 userFeeAmount = 0;
                     //Whether there is no Auc escrowed and the execution had a fee.
                     if ((escrowStart == 0 || escrowStart > execution.time) && execution.feeAmount > 0) {
-                        userFeeAmout = _getFeeAmountForExecution((userData.baseExecutionId+1) == i, execution.feeAmount, execution.totalBalance.sub(execution.totalFeeDeduction), userData);
+                        userFeeAmount = _getFeeAmountForExecution((userData.baseExecutionId+1) == i, execution.feeAmount, execution.totalBalance.sub(execution.totalFeeDeduction), userData);
                         
                         //The maximum amount of fee must be lesser or equal to the user's accrued interest.
-                        if (userFeeAmout > userAccruedInterest) {
-                            userFeeAmout = userAccruedInterest;
+                        if (userFeeAmount > userAccruedInterest) {
+                            userFeeAmount = userAccruedInterest;
                         }
-                        feeAmount = feeAmount.add(userFeeAmout);
+                        feeAmount = feeAmount.add(userFeeAmount);
                     }
                     
                     //Whether the asset is cDai then the net profit continues on Compound contract.
                     if (isCompound) {
-                        remainingBalance = remainingBalance.add(userAccruedInterest.sub(userFeeAmout));
+                        remainingBalance = remainingBalance.add(userAccruedInterest.sub(userFeeAmount));
                     }
                     
                     if (execution.totalBought > 0) {
-                        assetAmount = assetAmount.add(userAccruedInterest.sub(userFeeAmout).mul(execution.totalBought).div(execution.totalRedeemed.sub(execution.feeAmount)));
+                        assetAmount = assetAmount.add(userAccruedInterest.sub(userFeeAmount).mul(execution.totalBought).div(execution.totalRedeemed.sub(execution.feeAmount)));
                     }
                 }
             }
@@ -654,24 +753,55 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
     }
     
     /**
-     * @dev Internal function to set the difference between the amount of Dai deposited and the respective value normalized to the last Compound redeem execution time.
-     * @param commit Whether it is adding the difference for next Compound redeem execution.
+     * @dev Internal function to get the difference between the amount of Dai and the respective value normalized to the last Compound redeem execution time.
      * @param totalAmount The total amount of Dai to be normalized.
      * @param currentRate The current rate.
      * @param previousRate The previous rate.
+     * @return The difference between the amount of Dai and the respective value normalized to the last Compound redeem execution time.
      */
-    function _setTotalBalanceNormalizedDifferenceForNextExecution(
-        bool commit, 
+    function _getNormalizedDifference(
         uint256 totalAmount,
         uint256 currentRate,
         uint256 previousRate
+    ) internal pure returns(uint256) {
+        if (currentRate > previousRate) {
+            return totalAmount.sub(totalAmount.mul(previousRate).div(currentRate));
+        } else {
+            return 0;
+        }
+    }
+    
+    /**
+     * @dev Internal function to set the difference between the amount of Dai with fee exemption and the respective value normalized to the last Compound redeem execution time.
+     * @param commit Whether it is adding the difference for next Compound redeem execution.
+     * @param normalizedDifference The difference between the amount of Dai with fee exemption and the respective value normalized to the last Compound redeem execution time.
+     */
+    function _setFeeExemptionNormalizedDifferenceForNextExecution(
+        bool commit, 
+        uint256 normalizedDifference
     ) internal {
         uint256 nextExecution = executionId + 1;
-        uint256 amount = totalAmount.sub(totalAmount.mul(previousRate).div(currentRate));
         if (commit) {
-            totalBalanceNormalizedDifference[nextExecution] = totalBalanceNormalizedDifference[nextExecution].add(amount);
+            feeExemptionNormalizedDifference[nextExecution] = feeExemptionNormalizedDifference[nextExecution].add(normalizedDifference);
         } else {
-            totalBalanceNormalizedDifference[nextExecution] = totalBalanceNormalizedDifference[nextExecution].sub(amount);
+            feeExemptionNormalizedDifference[nextExecution] = feeExemptionNormalizedDifference[nextExecution].sub(normalizedDifference);
+        }
+    }
+    
+    /**
+     * @dev Internal function to set the difference between the amount of Dai deposited and the respective value normalized to the last Compound redeem execution time.
+     * @param commit Whether it is adding the difference for next Compound redeem execution.
+     * @param normalizedDifference The difference between the amount of Dai deposited and the respective value normalized to the last Compound redeem execution time.
+     */
+    function _setTotalBalanceNormalizedDifferenceForNextExecution(
+        bool commit, 
+        uint256 normalizedDifference
+    ) internal {
+        uint256 nextExecution = executionId + 1;
+        if (commit) {
+            totalBalanceNormalizedDifference[nextExecution] = totalBalanceNormalizedDifference[nextExecution].add(normalizedDifference);
+        } else {
+            totalBalanceNormalizedDifference[nextExecution] = totalBalanceNormalizedDifference[nextExecution].sub(normalizedDifference);
         }
     }
     
@@ -715,5 +845,107 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
         uint256 totalBought = _buy(amount, _auc);
         require(AucInterface(_auc).burn(totalBought), "DPiggyAsset::_burnAuc: Error on burn AUC");
         return totalBought;
+    }
+    
+    /**
+     * @dev Internal function to assert Compound return.
+     * @param compoundReturn The Compound return.
+     */
+    function _assertCompoundReturn(uint256 compoundReturn) internal pure {
+        require(compoundReturn == 0, _getCompoundError(compoundReturn));
+    }
+    
+    /**
+     * @dev Internal function to get Compound error.
+     * @param compoundReturn The Compound return.
+     * @return Error message.
+     */
+    function _getCompoundError(uint256 compoundReturn) internal pure returns(string memory) {
+        uint256 i = compoundReturn;
+        uint256 length;
+        while (i != 0) {
+            length++;
+            i /= 10;
+        }
+        bytes memory errorCode = new bytes(length);
+        uint256 j = length - 1;
+        while (compoundReturn != 0) {
+            errorCode[j--] = byte(uint8(48 + compoundReturn % 10));
+            compoundReturn /= 10;
+        }
+        return string(abi.encodePacked("Compound error ", string(errorCode)));
+    }
+    
+    /******************************************************
+     * @dev Functions to get data from previous contract. *
+     ******************************************************/
+     
+    function _getContractUint256(address _contract, bytes memory data) internal view returns(uint256) {
+        bytes memory returnData = _getData(_contract, data);
+        return abi.decode(returnData, (uint256));
+    }
+    
+    function _getContractAddress(address _contract, bytes memory data) internal view returns(address) {
+        bytes memory returnData = _getData(_contract, data);
+        return abi.decode(returnData, (address));
+    }
+    
+    function _getContractBool(address _contract, bytes memory data) internal view returns(bool) {
+        bytes memory returnData = _getData(_contract, data);
+        return abi.decode(returnData, (bool));
+    }
+    
+    function _getContractExecution(address _contract, bytes memory data) internal view returns(Execution memory) {
+        bytes memory returnData = _getData(_contract, data);
+        uint256[] memory executionData = _getUint256Array(returnData);
+        return Execution({
+            time: executionData[0],
+            rate: executionData[1],
+            totalDai: executionData[2],
+            totalRedeemed: executionData[3],
+            totalBought: executionData[4],
+            totalBalance: executionData[5],
+            totalFeeDeduction: executionData[6],
+            feeAmount: executionData[7]
+        });
+    }
+    
+    function _getContractUserData(address _contract, bytes memory data) internal view returns(UserData memory) {
+        bytes memory returnData = _getData(_contract, data);
+        uint256[] memory userData = _getUint256Array(returnData);
+        return UserData({
+            baseExecutionId: userData[0],
+            baseExecutionAvgRate: userData[1],
+            baseExecutionAccumulatedAmount: userData[2],
+            baseExecutionAccumulatedWeightForRate: userData[3],
+            baseExecutionAmountForFee: userData[4],
+            currentAllocated: userData[5],
+            previousAllocated: userData[6],
+            previousProfit: userData[7],
+            previousAssetAmount: userData[8],
+            previousFeeAmount: userData[9],
+            redeemed: userData[10]
+        });
+    }
+    
+    function _getData(address _contract, bytes memory data) internal view returns(bytes memory) {
+        (bool success, bytes memory returnData) = _contract.staticcall(data);
+        assert(success); 
+        return returnData;
+    }
+    
+    function _getUint256Array(bytes memory data) internal pure returns(uint256[] memory) {
+        uint256 size = data.length / 32;
+        uint256[] memory returnUint = new uint256[](size);
+        uint256 offset = 0;
+        for (uint256 i = 0; i < size; ++i) {
+            bytes32 number;
+            for (uint256 j = 0; j < 32; j++) {
+                number |= bytes32(data[offset + j] & 0xFF) >> (j * 8);
+            }
+            returnUint[i] = uint256(number);
+            offset += 32;
+        }
+        return returnUint;
     }
 }
