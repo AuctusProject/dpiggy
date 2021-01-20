@@ -2,6 +2,7 @@ import Web3Utils from 'web3-utils'
 import Web3 from 'web3'
 import { daiAddress, aucAddress } from './constants'
 import { erc20ABI } from './erc20ABI'
+import '@metamask/legacy-web3'
 
 var _web3 = null
 export function getWeb3() {
