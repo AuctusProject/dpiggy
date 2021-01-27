@@ -19,4 +19,5 @@ interface DPiggyDataInterface {
 interface DPiggyInterface is DPiggyDataInterface {
     function executionFee(uint256 baseTime) external view returns(uint256);
     function escrowStart(address user) external view returns(uint256);
+    function admin() external view returns(address);
 }

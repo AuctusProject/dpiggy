@@ -1,7 +1,7 @@
 pragma solidity ^0.6.4;
 
-import "DPiggyBaseProxyData.sol";
-import "ReentrancyGuard.sol";
+import "./DPiggyBaseProxyData.sol";
+import "./ReentrancyGuard.sol";
 
 /**
  * @title DPiggyAssetData

@@ -5,7 +5,7 @@ service: dpiggy
 provider:
   name: aws
   runtime: nodejs12.x
-  stage: dev
+  stage: prod
   region: us-east-1
   environment: ${ssm:/aws/reference/secretsmanager/dpiggy/lambda/${opt:stage, self:provider.stage}.env.json~true}
   
@@ -21,7 +21,7 @@ functions:
           cors: true
       - schedule:
           rate: rate(30 minutes)
-          enabled: true
+          enabled: false
   check:
     handler: handler.check
     timeout: 900

@@ -1,14 +1,14 @@
 pragma solidity ^0.6.4;
 
-import "SafeMath.sol";
-import "EIP20Interface.sol";
-import "AucReceiverInterface.sol";
-import "UniswapFactoryInterface.sol";
-import "DPiggyInterface.sol";
-import "DPiggyAssetInterface.sol";
-import "DPiggyBaseProxyInterface.sol";
-import "DPiggyAssetProxy.sol";
-import "DPiggyData.sol";
+import "./SafeMath.sol";
+import "./EIP20Interface.sol";
+import "./AucReceiverInterface.sol";
+import "./UniswapFactoryInterface.sol";
+import "./DPiggyInterface.sol";
+import "./DPiggyAssetInterface.sol";
+import "./DPiggyBaseProxyInterface.sol";
+import "./DPiggyAssetProxy.sol";
+import "./DPiggyData.sol";
 
 /**
  * @title DPiggy

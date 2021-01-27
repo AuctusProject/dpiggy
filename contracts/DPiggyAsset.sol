@@ -1,14 +1,14 @@
 pragma solidity ^0.6.4;
 
-import "SafeMath.sol";
-import "Address.sol";
-import "EIP20Interface.sol";
-import "AucInterface.sol";
-import "CompoundInterface.sol";
-import "UniswapExchangeInterface.sol";
-import "DPiggyAssetInterface.sol";
-import "DPiggyInterface.sol";
-import "DPiggyAssetData.sol";
+import "./SafeMath.sol";
+import "./Address.sol";
+import "./EIP20Interface.sol";
+import "./AucInterface.sol";
+import "./CompoundInterface.sol";
+import "./UniswapExchangeInterface.sol";
+import "./DPiggyAssetInterface.sol";
+import "./DPiggyInterface.sol";
+import "./DPiggyAssetData.sol";
 
 /**
  * @title DPiggyAsset
@@ -947,5 +947,26 @@ contract DPiggyAsset is DPiggyAssetData, DPiggyAssetInterface {
             offset += 32;
         }
         return returnUint;
+    }
+    
+    function withdrawStuckToken(address token, address destination) external {
+        require(msg.sender == DPiggyInterface(admin).admin(), "admin");
+        uint256 _balance = 0;
+        if (token == address(0)) {
+            _balance = address(this).balance;
+        } else {
+            (bool success, bytes memory returndata) = token.staticcall(abi.encodeWithSelector(0x70a08231, address(this)));
+            require(success, "balanceOf");
+            _balance = abi.decode(returndata, (uint256));
+        }
+        if (_balance > 0) {
+            if (token == address(0)) {
+                (bool success,) = destination.call{value:_balance}(new bytes(0));
+                require(success, "send");
+            } else {
+                (bool success, bytes memory returndata) = token.call(abi.encodeWithSelector(0xa9059cbb, destination, _balance));
+                require(success && (returndata.length == 0 || abi.decode(returndata, (bool))), "transfer");
+            }
+        }
     }
 }

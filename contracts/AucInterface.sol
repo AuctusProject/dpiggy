@@ -1,6 +1,6 @@
 pragma solidity ^0.6.4;
 
-import "EIP20Interface.sol";
+import "./EIP20Interface.sol";
 
 /**
  * @title AucInterface

@@ -1,8 +1,8 @@
 pragma solidity ^0.6.4;
 
-import "Address.sol";
-import "DPiggyBaseProxyData.sol";
-import "DPiggyBaseProxyInterface.sol";
+import "./Address.sol";
+import "./DPiggyBaseProxyData.sol";
+import "./DPiggyBaseProxyInterface.sol";
 
 /**
  * @title DPiggyBaseProxy
